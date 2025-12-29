@@ -1,8 +1,10 @@
 use colored::*;
 use std::fmt;
 
-#[derive(Debug, PartialEq, Clone, Copy)]
-pub enum Color{
+/// A single unit that occupies a slot in a glass.
+/// Besides color it also contains the empty color for convenience.
+#[derive(Debug, PartialEq, Clone, Copy, Hash)]
+pub enum Color {
     EMPTY,
     RED,
     GREEN,
