@@ -1,7 +1,7 @@
-use water_sort::glass::{color::Color, glass::Glass};
-use water_sort::solver::{
-    glass_system::{GlassSystem, GlassSystemResult},
-    solver::Solver,
+use water_sort::game_elements::{color::Color, glass::Glass};
+use water_sort::{
+    solver::solver::Solver,
+    game_elements::glass_system::{GlassSystem, GlassSystemResult}
 };
 
 fn main() -> GlassSystemResult<()> {

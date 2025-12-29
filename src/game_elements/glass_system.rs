@@ -1,8 +1,9 @@
 use thiserror::Error;
 
-use crate::glass::{
+use crate::game_elements::{
     color::Color,
     glass::{Glass, GlassError},
+    step::Step,
     GLASS_CAPACITY,
 };
 
@@ -165,5 +166,29 @@ impl GlassSystem {
             print!("╰───╯ ");
         }
         println!();
+    }
+    
+    /// Gets all valid steps for a given node (or system)
+    pub fn get_valid_steps(&self) -> Vec<Step> {
+        let mut valid_steps = Vec::new();
+
+        for source in self.get_state() {
+            if source.is_empty() {
+                continue;
+            }
+            for destination in self.get_state() {
+                if destination.is_full() {
+                    continue;
+                }
+
+                if destination.is_empty() || source.top() == destination.top() {
+                    valid_steps.push(Step {
+                        source: source.id,
+                        destination: destination.id,
+                    })
+                }
+            }
+        }
+        valid_steps
     }
 }

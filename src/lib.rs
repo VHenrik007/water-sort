@@ -1,2 +1,2 @@
-pub mod glass;
+pub mod game_elements;
 pub mod solver;

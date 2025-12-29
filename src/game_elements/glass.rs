@@ -1,8 +1,8 @@
 use std::sync::atomic::{AtomicUsize, Ordering};
 use thiserror::Error;
 
-use crate::glass::color::Color;
-use crate::glass::GLASS_CAPACITY;
+use crate::game_elements::color::Color;
+use crate::game_elements::GLASS_CAPACITY;
 
 /// Seen somewhere that this is an easy way to add new IDs.
 static GLASS_ID_COUNTER: AtomicUsize = AtomicUsize::new(0);
