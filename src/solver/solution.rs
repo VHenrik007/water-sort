@@ -10,6 +10,10 @@ impl WaterSortSolution {
         self.0.len()
     }
 
+    pub fn is_empty(&self) -> bool {
+        self.len() == 0
+    }
+
     pub fn push_front(&mut self, step: Step) {
         self.0.push_front(step);
     }

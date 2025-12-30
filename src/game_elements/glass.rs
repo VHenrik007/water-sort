@@ -1,3 +1,4 @@
+use std::hash::Hash;
 use std::sync::atomic::{AtomicUsize, Ordering};
 use thiserror::Error;
 
@@ -8,7 +9,7 @@ use crate::game_elements::GLASS_CAPACITY;
 static GLASS_ID_COUNTER: AtomicUsize = AtomicUsize::new(0);
 
 /// A single glass in the game
-#[derive(Debug, Clone, Copy, Hash)]
+#[derive(Debug, Clone, Copy)]
 pub struct Glass {
     /// Contains color IDs. Each glass has the same length.
     pub glass: [Color; GLASS_CAPACITY + 1],
@@ -30,6 +31,13 @@ impl PartialEq for Glass {
     }
 }
 
+impl Hash for Glass {
+    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+        self.glass.hash(state);
+        self.top.hash(state);
+    }
+}
+
 impl Eq for Glass {}
 
 /// Just to make things easier.
@@ -42,6 +50,12 @@ pub enum GlassError {
     InvalidConstructorColorLength(usize),
     #[error("The glass is full.")]
     FullGlass,
+}
+
+impl Default for Glass {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl Glass {
@@ -85,7 +99,7 @@ impl Glass {
 
         if self.top != 0 {
             self.glass[self.top] = Color::EMPTY;
-            self.top = self.top - 1;
+            self.top -= 1;
         }
 
         current_color
@@ -98,7 +112,7 @@ impl Glass {
             return Err(GlassError::FullGlass);
         }
 
-        self.top = self.top + 1;
+        self.top += 1;
         self.glass[self.top] = color;
 
         Ok(())

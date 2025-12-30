@@ -1,3 +1,3 @@
 pub mod node;
 pub mod solution;
-pub mod solver;
+pub mod system_solver;

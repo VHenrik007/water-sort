@@ -45,15 +45,15 @@ impl Solver {
                 .collect();
 
             // Double for loop necessary due to borrow checker.
-            for (_, next_neighbour) in &mut node.neighbour_nodes {
+            for next_neighbour in node.neighbour_nodes.values_mut() {
                 next_neighbour.build_neighbours();
             }
 
-            for (_, next_neighbour) in &node.neighbour_nodes {
+            for next_neighbour in node.neighbour_nodes.values() {
                 queue.push_back(next_neighbour.clone());
                 paths.insert(next_neighbour.clone(), node.clone());
                 if next_neighbour.system.is_solved() {
-                    return Ok(self.get_solution_path(&paths, &next_neighbour));
+                    return Ok(self.get_solution_path(&paths, next_neighbour));
                 }
             }
         }

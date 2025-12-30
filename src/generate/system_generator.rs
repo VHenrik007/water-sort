@@ -24,10 +24,10 @@ pub type SystemGeneratorResult<T> = Result<T, SystemGeneratorError>;
 /// - Two glasses are always completely empty
 /// - All other glasses are always full
 /// - Number of glasses = number of colors + 2
-/// TODO: Make it more flexible to allow experimentation with
-///       varying sizes and numbers including the glass capactiy
-///       that is currently a constant.
 pub fn generate_random_system(no_colors: usize) -> SystemGeneratorResult<GlassSystem> {
+    // TODO: Make it more flexible to allow experimentation with
+    //       varying sizes and numbers including the glass capactiy
+    //       that is currently a constant.
     let mut color_pool: Vec<Color> = Vec::with_capacity(GLASS_CAPACITY * no_colors);
     for color_id in 1..=no_colors {
         for _ in 0..GLASS_CAPACITY {

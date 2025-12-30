@@ -1,3 +1,5 @@
+use std::hash::Hash;
+
 use thiserror::Error;
 
 use crate::game_elements::{
@@ -22,15 +24,12 @@ pub enum GlassSystemError {
 pub type GlassSystemResult<T> = Result<T, GlassSystemError>;
 
 /// A system should be the collection of the glasses and basic logic over them.
-#[derive(Hash, Clone, Default)]
+#[derive(Clone, Default, Hash)]
 pub struct GlassSystem {
     system: Vec<Glass>,
 }
 
 impl PartialEq for GlassSystem {
-    /// System equality currently is checked "order-pairwise" instead of universally.
-    /// This means that equality is false even if they have the same glasses but in different
-    /// order. TODO: Refine this.
     fn eq(&self, other: &Self) -> bool {
         let my_state = self.get_state();
         let other_state = other.get_state();

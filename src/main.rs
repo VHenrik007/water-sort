@@ -4,7 +4,7 @@ use thiserror::Error;
 use water_sort::{
     game_elements::{glass::GlassError, glass_system::GlassSystemError},
     generate::system_generator::{generate_random_system, SystemGeneratorError},
-    solver::solver::{Solver, SolverError},
+    solver::system_solver::{Solver, SolverError},
 };
 
 /// Custom error for the solver.
@@ -27,7 +27,7 @@ pub enum WaterSortError {
 pub type WaterSortResult<T> = Result<T, WaterSortError>;
 
 fn main() -> WaterSortResult<()> {
-    let system = generate_random_system(5)?;
+    let system = generate_random_system(4)?;
     system.print_system_state();
 
     println!("Solving...");
