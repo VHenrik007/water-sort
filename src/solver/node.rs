@@ -1,20 +1,15 @@
 use std::{
-    hash::{Hash, Hasher},
     collections::HashMap,
+    hash::{Hash, Hasher},
 };
 
-use crate::game_elements::{
-    glass_system::GlassSystem,
-    step::Step,
-};
+use crate::game_elements::{glass_system::GlassSystem, step::Step};
 
-
-#[derive(Clone)]
+#[derive(Clone, Default)]
 pub struct Node {
     pub system: GlassSystem,
     pub neighbour_nodes: HashMap<Step, Node>,
     pub neighbour_steps: HashMap<Node, Step>,
-    
 }
 
 impl Hash for Node {
@@ -46,10 +41,16 @@ impl Node {
     pub fn build_neighbours(&mut self) {
         for step in &self.system.get_valid_steps() {
             let mut new_system = self.system.clone();
-            // Should be always ok, but sometimes (often) it isn't. TODO: Try else branch debug
             if new_system.try_pour(step.source, step.destination).is_ok() {
-                self.neighbour_nodes.insert(step.clone(), Node::from(new_system.clone()));
-                self.neighbour_steps.insert(Node::from(new_system), step.clone());
+                self.neighbour_nodes
+                    .insert(step.clone(), Node::from(new_system.clone()));
+                self.neighbour_steps
+                    .insert(Node::from(new_system), step.clone());
+            } else {
+                // NOTE: Used to be the case when source idx and destination idx were the same.
+                //       Left it here for future debugging.
+                println!("INVALID STEP TRYING: {}, {}", step.source, step.destination);
+                new_system.print_system_state();
             }
         }
     }

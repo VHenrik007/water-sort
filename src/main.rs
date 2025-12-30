@@ -1,10 +1,31 @@
+use thiserror::Error;
+
 use water_sort::game_elements::{color::Color, glass::Glass};
 use water_sort::{
-    solver::solver::Solver,
-    game_elements::glass_system::{GlassSystem, GlassSystemResult}
+    game_elements::{
+        glass::GlassError,
+        glass_system::{GlassSystem, GlassSystemError},
+    },
+    solver::solver::{Solver, SolverError},
 };
 
-fn main() -> GlassSystemResult<()> {
+/// Custom error for the solver.
+#[derive(Debug, Error)]
+pub enum WaterSortError {
+    /// Derived from the GlassError if an issue happens on that level.
+    #[error(transparent)]
+    GlassError(#[from] GlassError),
+    /// Derived from the GlassSystemError if an issue happens on that level.
+    #[error(transparent)]
+    GlassSystemError(#[from] GlassSystemError),
+    /// Derived from the SolverError if an issue happens on that level.
+    #[error(transparent)]
+    SolverError(#[from] SolverError),
+}
+
+pub type WaterSortResult<T> = Result<T, WaterSortError>;
+
+fn main() -> WaterSortResult<()> {
     let glass1 = Glass::new();
     let glass2 = Glass::new();
     let glass3 = Glass::from_colors(&[Color::BLUE, Color::BLUE, Color::GREEN, Color::GREEN])?;
@@ -19,8 +40,8 @@ fn main() -> GlassSystemResult<()> {
 
     println!("Solving...");
     let solver = Solver {};
-    let solution_steps = solver.solve(&system)?;
-    let solved_system = solver.validate_solution(system, &solution_steps)?;
+    let solution_steps = solver.find_solution(&system)?;
+    let solved_system = solver.solve(system, &solution_steps)?;
     if solved_system.is_solved() {
         println!("Solved in {} steps", solution_steps.len());
     } else {

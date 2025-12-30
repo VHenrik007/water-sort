@@ -1,6 +1,5 @@
 use std::fmt::Display;
 
-
 #[derive(Hash, PartialEq, Eq, Clone)]
 pub struct Step {
     pub source: usize,

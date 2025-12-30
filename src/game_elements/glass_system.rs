@@ -22,7 +22,7 @@ pub enum GlassSystemError {
 pub type GlassSystemResult<T> = Result<T, GlassSystemError>;
 
 /// A system should be the collection of the glasses and basic logic over them.
-#[derive(Hash, Clone)]
+#[derive(Hash, Clone, Default)]
 pub struct GlassSystem {
     system: Vec<Glass>,
 }
@@ -30,7 +30,7 @@ pub struct GlassSystem {
 impl PartialEq for GlassSystem {
     /// System equality currently is checked "order-pairwise" instead of universally.
     /// This means that equality is false even if they have the same glasses but in different
-    /// order. TODO: Refine this.  
+    /// order. TODO: Refine this.
     fn eq(&self, other: &Self) -> bool {
         let my_state = self.get_state();
         let other_state = other.get_state();
@@ -167,17 +167,21 @@ impl GlassSystem {
         }
         println!();
     }
-    
+
     /// Gets all valid steps for a given node (or system)
     pub fn get_valid_steps(&self) -> Vec<Step> {
         let mut valid_steps = Vec::new();
 
-        for source in self.get_state() {
+        for (src_idx, source) in self.get_state().iter().enumerate() {
             if source.is_empty() {
                 continue;
             }
-            for destination in self.get_state() {
+            for (dest_idx, destination) in self.get_state().iter().enumerate() {
                 if destination.is_full() {
+                    continue;
+                }
+
+                if dest_idx == src_idx {
                     continue;
                 }
 
