@@ -21,4 +21,8 @@ impl WaterSortSolution {
     pub fn steps(&self) -> &VecDeque<Step> {
         &self.0
     }
+
+    pub fn new(steps: VecDeque<Step>) -> Self {
+        WaterSortSolution { 0: steps }
+    }
 }

@@ -33,17 +33,23 @@ impl Solver {
         let mut root = Node::from(start_system.clone());
         root.build_neighbours();
         queue.push_back(root);
-
+        // TODO: More stats on neighoburs!!!!!!!!!!
+        let mut number_of_iterations = 0.;
+        let mut number_of_extracted_neighbours = 0.;
+        let mut sum_of_neighbours = 0.;
         while !queue.is_empty() {
+            number_of_iterations += 1.;
             // Unwrap is fair due to the while condition
             let mut node = queue.pop_front().unwrap();
             has_checked.insert(node.clone());
             // Collect necessary since iterators are lazy
-            let _: Vec<_> = node
+            let extracted: Vec<_> = node
                 .neighbour_nodes
                 .extract_if(|_, v| has_checked.contains(v) || queue.contains(v))
                 .collect();
+            number_of_extracted_neighbours += extracted.len() as f64;
 
+            sum_of_neighbours += node.neighbour_nodes.keys().len() as f64;
             // Double for loop necessary due to borrow checker.
             for next_neighbour in node.neighbour_nodes.values_mut() {
                 next_neighbour.build_neighbours();
@@ -53,6 +59,8 @@ impl Solver {
                 queue.push_back(next_neighbour.clone());
                 paths.insert(next_neighbour.clone(), node.clone());
                 if next_neighbour.system.is_solved() {
+                    println!("Avg. neighbours per loop: {:.4} ({}/{})", sum_of_neighbours / number_of_iterations, sum_of_neighbours, number_of_iterations);
+                    println!("Avg. extracted neighbours per loop: {:.4} ({}/{})", number_of_extracted_neighbours / number_of_iterations, number_of_extracted_neighbours, number_of_iterations);
                     return Ok(self.get_solution_path(&paths, next_neighbour));
                 }
             }
