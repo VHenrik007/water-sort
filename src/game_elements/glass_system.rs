@@ -24,30 +24,10 @@ pub enum GlassSystemError {
 pub type GlassSystemResult<T> = Result<T, GlassSystemError>;
 
 /// A system should be the collection of the glasses and basic logic over them.
-#[derive(Clone, Default, Hash)]
+#[derive(Clone, Default, Hash, PartialEq, Eq)]
 pub struct GlassSystem {
     system: Vec<Glass>,
 }
-
-impl PartialEq for GlassSystem {
-    fn eq(&self, other: &Self) -> bool {
-        let my_state = self.get_state();
-        let other_state = other.get_state();
-        if my_state.len() != other_state.len() {
-            return false;
-        }
-
-        for glass_idx in 0..my_state.len() {
-            if my_state[glass_idx] != other_state[glass_idx] {
-                return false;
-            }
-        }
-
-        true
-    }
-}
-
-impl Eq for GlassSystem {}
 
 impl GlassSystem {
     /// Some system is necessary, even if just an empty Vec.

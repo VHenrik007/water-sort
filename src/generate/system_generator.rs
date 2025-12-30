@@ -1,5 +1,7 @@
-use rand::rng;
 use rand::seq::SliceRandom;
+use rand::SeedableRng;
+use rand::Rng;
+use rand::rngs::StdRng;
 use thiserror::Error;
 
 use crate::game_elements::{
@@ -19,15 +21,15 @@ pub enum SystemGeneratorError {
 
 pub type SystemGeneratorResult<T> = Result<T, SystemGeneratorError>;
 
-/// Generate a random system.
+/// Generate a random system with a seed for deterministic generation.
 /// Current rules:
 /// - Two glasses are always completely empty
 /// - All other glasses are always full
 /// - Number of glasses = number of colors + 2
-pub fn generate_random_system(no_colors: usize) -> SystemGeneratorResult<GlassSystem> {
-    // TODO: Make it more flexible to allow experimentation with
-    //       varying sizes and numbers including the glass capactiy
-    //       that is currently a constant.
+pub fn generate_random_system_with_seed(
+    no_colors: usize,
+    seed: u64,
+) -> SystemGeneratorResult<GlassSystem> {
     let mut color_pool: Vec<Color> = Vec::with_capacity(GLASS_CAPACITY * no_colors);
     for color_id in 1..=no_colors {
         for _ in 0..GLASS_CAPACITY {
@@ -35,7 +37,8 @@ pub fn generate_random_system(no_colors: usize) -> SystemGeneratorResult<GlassSy
         }
     }
 
-    let mut rng = rng();
+    // Create a seeded RNG
+    let mut rng = StdRng::seed_from_u64(seed);
     color_pool.shuffle(&mut rng);
 
     let mut glasses = Vec::new();
@@ -52,4 +55,10 @@ pub fn generate_random_system(no_colors: usize) -> SystemGeneratorResult<GlassSy
     }
 
     Ok(GlassSystem::new(glasses))
+}
+
+/// Convenience function that uses the current time or a random seed.
+pub fn generate_random_system(no_colors: usize) -> SystemGeneratorResult<GlassSystem> {
+    let seed = rand::rng().random();
+    generate_random_system_with_seed(no_colors, seed)
 }
