@@ -1,4 +1,5 @@
 use std::collections::{HashMap, HashSet, VecDeque};
+use std::time::{Duration, Instant};
 use thiserror::Error;
 
 use crate::game_elements::glass_system::{GlassSystem, GlassSystemError};
@@ -26,42 +27,72 @@ pub struct Solver;
 impl Solver {
     /// BFS for constructing the valid-steps graph.
     pub fn find_solution(&self, start_system: &GlassSystem) -> SolverResult<WaterSortSolution> {
-        let mut has_checked: HashSet<Node> = HashSet::new();
+        let full_now = Instant::now();
         let mut paths: HashMap<Node, Node> = HashMap::new();
         let mut queue: VecDeque<Node> = VecDeque::new();
+        let mut in_queue: HashSet<Node> = HashSet::new();
+        // TODO: Next to avoid copying each system config should also have just an ID to avoid heavy clones.
+        // let mut system_map: HashMap<GlassSystem, u64> = HashMap::new();
 
         let mut root = Node::from(start_system.clone());
         root.build_neighbours();
-        queue.push_back(root);
-        // TODO: More stats on neighoburs!!!!!!!!!!
+        queue.push_back(root.clone());
+        in_queue.insert(root);
+
         let mut number_of_iterations = 0.;
         let mut number_of_extracted_neighbours = 0.;
         let mut sum_of_neighbours = 0.;
+        let mut max_neighbours = 0;
+
+        let mut neighbour_building = Duration::new(0, 0);
+        let mut neighbour_extraction = Duration::new(0, 0);
+        let mut valid_step_time = Duration::new(0, 0);
+        let mut step_insert_time = Duration::new(0, 0);
+
         while !queue.is_empty() {
             number_of_iterations += 1.;
             // Unwrap is fair due to the while condition
             let mut node = queue.pop_front().unwrap();
-            has_checked.insert(node.clone());
-            // Collect necessary since iterators are lazy
-            let extracted: Vec<_> = node
+
+            let now = Instant::now();
+                // Collect necessary since iterators are lazy
+                let extracted: Vec<_> = node
                 .neighbour_nodes
-                .extract_if(|_, v| has_checked.contains(v) || queue.contains(v))
+                .extract_if(|_, v| in_queue.contains(v))
                 .collect();
             number_of_extracted_neighbours += extracted.len() as f64;
+            neighbour_extraction += now.elapsed();
 
             sum_of_neighbours += node.neighbour_nodes.keys().len() as f64;
+            if node.neighbour_nodes.keys().len() > max_neighbours {
+                max_neighbours = node.neighbour_nodes.keys().len()
+            }
             // Double for loop necessary due to borrow checker.
             for next_neighbour in node.neighbour_nodes.values_mut() {
-                next_neighbour.build_neighbours();
+                let now = Instant::now();
+                let (valid_time, insert_time) = next_neighbour.build_neighbours();
+                valid_step_time += valid_time;
+                step_insert_time += insert_time;
+                neighbour_building += now.elapsed();
             }
 
             for next_neighbour in node.neighbour_nodes.values() {
                 queue.push_back(next_neighbour.clone());
+                in_queue.insert(next_neighbour.clone());
                 paths.insert(next_neighbour.clone(), node.clone());
                 if next_neighbour.system.is_solved() {
-                    println!("Avg. neighbours per loop: {:.4} ({}/{})", sum_of_neighbours / number_of_iterations, sum_of_neighbours, number_of_iterations);
+                    println!("Avg. new neighbours per loop: {:.4} ({}/{})", sum_of_neighbours / number_of_iterations, sum_of_neighbours, number_of_iterations);
                     println!("Avg. extracted neighbours per loop: {:.4} ({}/{})", number_of_extracted_neighbours / number_of_iterations, number_of_extracted_neighbours, number_of_iterations);
-                    return Ok(self.get_solution_path(&paths, next_neighbour));
+                    println!("Most new neighbours: {}", max_neighbours);
+                    println!("Time spent on building neighbours: {:.2?}", neighbour_building);
+                    println!("Time spent on extracting neighbours: {:.2?}", neighbour_extraction);
+                    println!("Time spent on valid step neighbours: {:.2?}", valid_step_time);
+                    println!("Time spent on insert neighbours: {:.2?}", step_insert_time);
+                    let solution = self.get_solution_path(&paths, next_neighbour);
+                    let full_time = full_now.elapsed();
+                    println!("Total time spent: {:.2?}", full_time);
+                    println!("Non-measured time: {:.2?}", full_time - step_insert_time - valid_step_time - neighbour_extraction -neighbour_building);
+                    return Ok(solution);
                 }
             }
         }

@@ -6,7 +6,7 @@ use water_sort::{
 };
 
 fn criterion_benchmark(c: &mut Criterion) {
-    let system = generate_random_system_with_seed(4, 42).unwrap();
+    let system = generate_random_system_with_seed(3, 42).unwrap();
     let solver = Solver {};
     c.bench_function("water_10", |b| {
         b.iter(|| solver.find_solution(black_box(&system)))

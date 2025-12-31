@@ -27,7 +27,7 @@ pub enum WaterSortError {
 pub type WaterSortResult<T> = Result<T, WaterSortError>;
 
 fn main() -> WaterSortResult<()> {
-    let system = generate_random_system_with_seed(4, 43)?;
+    let system = generate_random_system_with_seed(5, 43)?;
     system.print_system_state();
 
     println!("Solving...");
@@ -37,12 +37,15 @@ fn main() -> WaterSortResult<()> {
     let solution_steps = solver.find_solution(&system)?;
     let elapsed = now.elapsed();
 
+    let now = Instant::now();
     let solved_system = solver.solve(system, &solution_steps)?;
+    let solved_time = now.elapsed();
     if solved_system.is_solved() {
         println!(
-            "Found a {} step solution in {:.2?}",
+            "Found a {} step solution in {:.2?} and solved in {:.2?}",
             solution_steps.len(),
-            elapsed
+            elapsed,
+            solved_time
         );
     } else {
         println!("Incomplete solution!")

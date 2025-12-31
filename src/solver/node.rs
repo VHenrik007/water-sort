@@ -1,6 +1,6 @@
 use std::{
     collections::HashMap,
-    hash::{Hash, Hasher},
+    hash::{Hash, Hasher}, time::{Duration, Instant},
 };
 
 use crate::game_elements::{glass_system::GlassSystem, step::Step};
@@ -38,8 +38,12 @@ impl From<GlassSystem> for Node {
 
 impl Node {
     /// Collects all valid steps and creates all neighbours for each possible step.
-    pub fn build_neighbours(&mut self) {
-        for step in &self.system.get_valid_steps() {
+    pub fn build_neighbours(&mut self) -> (Duration, Duration) {
+        let now = Instant::now();
+        let valid_steps = self.system.get_valid_steps();
+        let valid_step_time = now.elapsed();
+        let now = Instant::now();
+        for step in &valid_steps {
             let mut new_system = self.system.clone();
             if new_system.try_pour(step.source, step.destination).is_ok() {
                 self.neighbour_nodes
@@ -53,5 +57,8 @@ impl Node {
                 new_system.print_system_state();
             }
         }
+        let step_insert_time = now.elapsed();
+
+        (valid_step_time, step_insert_time)
     }
 }
