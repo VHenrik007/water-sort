@@ -1,4 +1,4 @@
-use std::collections::{HashMap, HashSet, VecDeque};
+use std::collections::{BinaryHeap, HashMap, HashSet, VecDeque};
 use std::hash::Hash;
 use std::time::{Duration, Instant};
 use thiserror::Error;
@@ -26,6 +26,86 @@ pub enum SolverError {
 
 pub type SolverResult<T> = Result<T, SolverError>;
 type SystemId = u32;
+type SolutionValue = u32;
+
+/// These are being stored in the main priority queue
+/// of the BFS. The system and it's corresponding
+/// "closeness" to a solution.
+struct PrQueueNode {
+    /// ID of the glass system
+    system_id: SystemId,
+    /// Some metric determining how good this states is compared to a final soltuion.
+    /// The exact metrix is defined elsewhere.
+    solution_value: SolutionValue,
+}
+
+impl PartialEq for PrQueueNode {
+    fn eq(&self, other: &Self) -> bool {
+        other.solution_value.eq(&self.solution_value)
+    }
+}
+impl Eq for PrQueueNode {}
+
+impl Ord for PrQueueNode {
+    /// To make the binary heap a minimum heap we switch order of comparison here
+    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
+        other
+            .solution_value
+            .cmp(&self.solution_value)
+            .then_with(|| self.system_id.cmp(&other.system_id))
+    }
+}
+
+impl PartialOrd for PrQueueNode {
+    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
+        Some(self.cmp(other))
+    }
+}
+
+#[allow(dead_code)]
+enum QueueType<T> {
+    Regular(VecDeque<T>),
+    BinaryHeap(BinaryHeap<T>),
+}
+
+struct SolverQueue<T> {
+    queue: QueueType<T>,
+}
+
+impl<T: Ord> SolverQueue<T> {
+    pub fn new(queue: QueueType<T>) -> Self {
+        SolverQueue { queue }
+    }
+
+    pub fn push(&mut self, elem: T) {
+        match self.queue {
+            QueueType::BinaryHeap(ref mut queue) => {
+                queue.push(elem);
+            }
+            QueueType::Regular(ref mut queue) => {
+                queue.push_back(elem);
+            }
+        }
+    }
+
+    pub fn pop(&mut self) -> Option<T> {
+        match self.queue {
+            QueueType::BinaryHeap(ref mut queue) => queue.pop(),
+            QueueType::Regular(ref mut queue) => queue.pop_front(),
+        }
+    }
+
+    pub fn len(&self) -> usize {
+        match &self.queue {
+            QueueType::BinaryHeap(queue) => queue.len(),
+            QueueType::Regular(queue) => queue.len(),
+        }
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.len() == 0
+    }
+}
 
 pub struct Solver;
 
@@ -42,7 +122,8 @@ impl Solver {
     pub fn find_solution(&self, start_system: &GlassSystem) -> SolverResult<WaterSortSolution> {
         let full_now = Instant::now();
         let mut paths: HashMap<SystemId, (Step, SystemId)> = HashMap::new();
-        let mut queue: VecDeque<SystemId> = VecDeque::new();
+        let mut queue: SolverQueue<PrQueueNode> =
+            SolverQueue::new(QueueType::BinaryHeap(BinaryHeap::new()));
         let mut found_systems: HashSet<SystemId> = HashSet::new();
 
         let mut system_id_counter: SystemId = 0;
@@ -55,7 +136,12 @@ impl Solver {
         id_system_map.insert(system_id_counter, root.clone());
         system_id_counter += 1;
 
-        queue.push_back(*system_id_map.get(&root).unwrap());
+        let root_node = PrQueueNode {
+            system_id: *system_id_map.get(&root).unwrap(),
+            solution_value: solution_value(&root),
+        };
+        queue.push(root_node);
+        // queue.push(root_node);
 
         let mut number_of_iterations = 0.;
         let mut number_of_valid_steps = 0.;
@@ -67,11 +153,12 @@ impl Solver {
         while !queue.is_empty() {
             number_of_iterations += 1.;
             // Unwrap is fair due to the while condition
-            let node = queue.pop_front().unwrap();
+            let node = queue.pop().unwrap();
+            // let node = queue.pop().unwrap();
 
             let now = Instant::now();
             let (valid_steps, neighbours) = build_neighbours(
-                node,
+                node.system_id,
                 &mut system_id_map,
                 &mut id_system_map,
                 &mut system_id_counter,
@@ -85,10 +172,15 @@ impl Solver {
             }
 
             for neighbour in neighbours {
-                queue.push_back(neighbour.system);
+                let neighbour_node = PrQueueNode {
+                    system_id: neighbour.system,
+                    solution_value: solution_value(id_system_map.get(&neighbour.system).unwrap()),
+                };
+                queue.push(neighbour_node);
+                // queue.push(neighbour_node);
                 found_systems.insert(neighbour.system);
 
-                paths.insert(neighbour.system, (neighbour.step.clone(), node));
+                paths.insert(neighbour.system, (neighbour.step.clone(), node.system_id));
 
                 if id_system_map.get(&neighbour.system).unwrap().is_solved() {
                     println!(
@@ -108,6 +200,7 @@ impl Solver {
                         "Time spent on building neighbours: {:.2?}",
                         neighbour_building
                     );
+                    println!("Queue size at the end: {}", queue.len());
                     let solution = get_solution_path(&paths, &neighbour.system);
                     let full_time = full_now.elapsed();
                     println!("Total time spent: {:.2?}", full_time);
@@ -184,3 +277,25 @@ fn get_solution_path(
 
     steps
 }
+
+/// A metric that determines how "far off" we are from a solution
+/// This can be any arbitrary logic.
+fn solution_value(_system: &GlassSystem) -> SolutionValue {
+    1
+    //alternating_color_metric(system)
+}
+
+/*
+fn alternating_color_metric(system: &GlassSystem) -> SolutionValue {
+    let mut value: SolutionValue = 0;
+    let mut different_colors = HashSet::new();
+    for glass in system.get_state() {
+        for color in glass.glass {
+            different_colors.insert(color);
+        }
+        value += different_colors.len() as SolutionValue;
+    }
+
+    value
+}
+*/
