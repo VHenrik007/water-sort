@@ -58,6 +58,7 @@ impl Solver {
         queue.push_back(*system_id_map.get(&root).unwrap());
 
         let mut number_of_iterations = 0.;
+        let mut number_of_valid_steps = 0.;
         let mut sum_of_new_neighbours = 0.;
         let mut max_neighbours = 0;
 
@@ -69,10 +70,11 @@ impl Solver {
             let node = queue.pop_front().unwrap();
 
             let now = Instant::now();
-            let neighbours = build_neighbours(node, &mut system_id_map, &mut id_system_map, &mut system_id_counter);
+            let (valid_steps, neighbours) = build_neighbours(node, &mut system_id_map, &mut id_system_map, &mut system_id_counter);
             neighbour_building += now.elapsed();
 
-            sum_of_new_neighbours += neighbours.len() as f64;
+            number_of_valid_steps += valid_steps as f32;
+            sum_of_new_neighbours += neighbours.len() as f32;
             if neighbours.len() > max_neighbours {
                 max_neighbours = neighbours.len()
             }
@@ -85,6 +87,7 @@ impl Solver {
 
                 if id_system_map.get(&neighbour.system).unwrap().is_solved() {
                     println!("Avg. new neighbours per loop: {:.4} ({}/{})", sum_of_new_neighbours / number_of_iterations, sum_of_new_neighbours, number_of_iterations);
+                    println!("Avg. valid steps per loop: {:.4} ({}/{})", number_of_valid_steps / number_of_iterations, number_of_valid_steps, number_of_iterations);
                     println!("Most new neighbours: {}", max_neighbours);
                     println!("Time spent on building neighbours: {:.2?}", neighbour_building);
                     let solution = get_solution_path(&paths, &neighbour.system);
@@ -117,7 +120,7 @@ impl Solver {
 
 
 /// Collects all valid steps and creates all neighbours for each possible step.
-fn build_neighbours(system_id: SystemId, system_id_map: &mut HashMap<GlassSystem, SystemId>, id_system_map: &mut HashMap<SystemId, GlassSystem>, id_counter: &mut SystemId) -> HashSet<Neighbour> {
+fn build_neighbours(system_id: SystemId, system_id_map: &mut HashMap<GlassSystem, SystemId>, id_system_map: &mut HashMap<SystemId, GlassSystem>, id_counter: &mut SystemId) -> (usize, HashSet<Neighbour>) {
     let mut neighbours = HashSet::new();
     let system = id_system_map.get(&system_id).unwrap().clone();
     let valid_steps = system.get_valid_steps();
@@ -131,11 +134,10 @@ fn build_neighbours(system_id: SystemId, system_id_map: &mut HashMap<GlassSystem
                 neighbours.insert(Neighbour {step: step.clone(), system: *id_counter});
                 *id_counter += 1;
             }
-
         }
     }
 
-    neighbours
+    (valid_steps.len(), neighbours)
 }
 
 fn get_solution_path(

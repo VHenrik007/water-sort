@@ -1,4 +1,4 @@
-use colored::*;
+use colored::{*, Color as TextColor};
 use std::fmt;
 
 /// A single unit that occupies a slot in a glass.
@@ -36,7 +36,12 @@ impl fmt::Display for Color {
                 4 => "■".yellow(),
                 5 => "■".cyan(),
                 6 => "■".magenta(),
-                7 => "■".bright_red(),
+                7 => "■".color(TextColor::TrueColor { r: 255, g: 0, b: 0 }),
+                8 => "■".bright_green(),
+                9 => "■".bright_blue(),
+                10 => "■".bright_yellow(),
+                11 => "■".bright_cyan(),
+                12 => "■".bright_magenta(),
                 0 => "■".bright_green(),
                 _ => unreachable!(),
             };
