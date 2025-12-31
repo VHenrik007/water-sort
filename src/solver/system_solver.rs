@@ -2,8 +2,11 @@ use std::collections::{HashMap, HashSet, VecDeque};
 use std::time::{Duration, Instant};
 use thiserror::Error;
 
-use crate::game_elements::glass_system::{GlassSystem, GlassSystemError};
-use crate::solver::{node::Node, solution::WaterSortSolution};
+use crate::game_elements::{
+    step::Step,
+    glass_system::{GlassSystem, GlassSystemError}
+};
+use crate::solver::solution::WaterSortSolution;
 
 /// Custom error for the solver.
 #[derive(Debug, Error)]
@@ -24,105 +27,79 @@ pub type SolverResult<T> = Result<T, SolverError>;
 
 pub struct Solver;
 
+#[derive(PartialEq, Eq, Hash)]
+pub struct Neighbour {
+    /// The resulting system
+    pub system: GlassSystem,
+    /// The step that leads to this resulting system
+    pub step: Step,
+}
+
 impl Solver {
     /// BFS for constructing the valid-steps graph.
     pub fn find_solution(&self, start_system: &GlassSystem) -> SolverResult<WaterSortSolution> {
         let full_now = Instant::now();
-        let mut paths: HashMap<Node, Node> = HashMap::new();
-        let mut queue: VecDeque<Node> = VecDeque::new();
-        let mut in_queue: HashSet<Node> = HashSet::new();
-        // TODO: Next to avoid copying each system config should also have just an ID to avoid heavy clones.
-        // let mut system_map: HashMap<GlassSystem, u64> = HashMap::new();
+        let mut paths: HashMap<GlassSystem, (Step, GlassSystem)> = HashMap::new();
+        let mut queue: VecDeque<GlassSystem> = VecDeque::new();
+        let mut found_systems: HashSet<GlassSystem> = HashSet::new();
 
-        let mut root = Node::from(start_system.clone());
-        root.build_neighbours();
+        let root = start_system.clone();
         queue.push_back(root.clone());
-        in_queue.insert(root);
+        found_systems.insert(root);
 
         let mut number_of_iterations = 0.;
         let mut number_of_extracted_neighbours = 0.;
-        let mut sum_of_neighbours = 0.;
+        let mut sum_of_new_neighbours = 0.;
         let mut max_neighbours = 0;
 
         let mut neighbour_building = Duration::new(0, 0);
         let mut neighbour_extraction = Duration::new(0, 0);
-        let mut valid_step_time = Duration::new(0, 0);
-        let mut step_insert_time = Duration::new(0, 0);
 
         while !queue.is_empty() {
             number_of_iterations += 1.;
             // Unwrap is fair due to the while condition
-            let mut node = queue.pop_front().unwrap();
+            let node = queue.pop_front().unwrap();
 
             let now = Instant::now();
-                // Collect necessary since iterators are lazy
-                let extracted: Vec<_> = node
-                .neighbour_nodes
-                .extract_if(|_, v| in_queue.contains(v))
+            let mut neighbours = build_neighbours(&node);
+            neighbour_building += now.elapsed();
+
+            let now = Instant::now();
+            // Collect necessary since iterators are lazy
+            let extracted: Vec<_> = neighbours
+                .extract_if(|n| found_systems.contains(&n.system))
                 .collect();
+
             number_of_extracted_neighbours += extracted.len() as f64;
             neighbour_extraction += now.elapsed();
 
-            sum_of_neighbours += node.neighbour_nodes.keys().len() as f64;
-            if node.neighbour_nodes.keys().len() > max_neighbours {
-                max_neighbours = node.neighbour_nodes.keys().len()
-            }
-            // Double for loop necessary due to borrow checker.
-            for next_neighbour in node.neighbour_nodes.values_mut() {
-                let now = Instant::now();
-                let (valid_time, insert_time) = next_neighbour.build_neighbours();
-                valid_step_time += valid_time;
-                step_insert_time += insert_time;
-                neighbour_building += now.elapsed();
+            sum_of_new_neighbours += neighbours.len() as f64;
+            if neighbours.len() > max_neighbours {
+                max_neighbours = neighbours.len()
             }
 
-            for next_neighbour in node.neighbour_nodes.values() {
-                queue.push_back(next_neighbour.clone());
-                in_queue.insert(next_neighbour.clone());
-                paths.insert(next_neighbour.clone(), node.clone());
-                if next_neighbour.system.is_solved() {
-                    println!("Avg. new neighbours per loop: {:.4} ({}/{})", sum_of_neighbours / number_of_iterations, sum_of_neighbours, number_of_iterations);
+            for neighbour in neighbours {
+                queue.push_back(neighbour.system.clone());
+                found_systems.insert(neighbour.system.clone());
+
+                paths.insert(neighbour.system.clone(), (neighbour.step.clone(), node.clone()));
+
+                if neighbour.system.is_solved() {
+                    println!("Avg. new neighbours per loop: {:.4} ({}/{})", sum_of_new_neighbours / number_of_iterations, sum_of_new_neighbours, number_of_iterations);
                     println!("Avg. extracted neighbours per loop: {:.4} ({}/{})", number_of_extracted_neighbours / number_of_iterations, number_of_extracted_neighbours, number_of_iterations);
                     println!("Most new neighbours: {}", max_neighbours);
                     println!("Time spent on building neighbours: {:.2?}", neighbour_building);
                     println!("Time spent on extracting neighbours: {:.2?}", neighbour_extraction);
-                    println!("Time spent on valid step neighbours: {:.2?}", valid_step_time);
-                    println!("Time spent on insert neighbours: {:.2?}", step_insert_time);
-                    let solution = self.get_solution_path(&paths, next_neighbour);
+                    let solution = get_solution_path(&paths, &neighbour.system);
                     let full_time = full_now.elapsed();
                     println!("Total time spent: {:.2?}", full_time);
-                    println!("Non-measured time: {:.2?}", full_time - step_insert_time - valid_step_time - neighbour_extraction -neighbour_building);
+                    println!("Non-measured time: {:.2?}", full_time - neighbour_extraction -neighbour_building);
                     return Ok(solution);
                 }
             }
         }
 
         Err(SolverError::NoSolutionError)
-    }
-
-    fn get_solution_path(
-        &self,
-        paths: &HashMap<Node, Node>,
-        solution_node: &Node,
-    ) -> WaterSortSolution {
-        let mut steps = WaterSortSolution::default();
-
-        let mut current_node = solution_node.clone();
-        let mut parent = paths.get(&current_node);
-
-        while parent.is_some() {
-            // Valid unwrap due to while condition.
-            let unwrapped_parent = parent.unwrap();
-            // Unwrap is safe since the parent can only be parent if current is a neighbour
-            // Note however that this relies on the fact that the two neighbour-management
-            // fields are kept in sync.
-            let step = unwrapped_parent.neighbour_steps.get(&current_node).unwrap();
-            steps.push_front(step.clone());
-            current_node = unwrapped_parent.clone();
-            parent = paths.get(&current_node);
-        }
-
-        steps
     }
 
     /// Given a possible solution, iterate through the steps and
@@ -139,4 +116,39 @@ impl Solver {
         }
         Ok(start_system)
     }
+}
+
+
+/// Collects all valid steps and creates all neighbours for each possible step.
+fn build_neighbours(system: &GlassSystem) -> HashSet<Neighbour> {
+    let mut neighbours = HashSet::new();
+    let valid_steps = system.get_valid_steps();
+    for step in &valid_steps {
+        let mut new_system = system.clone();
+        if new_system.try_pour(step.source, step.destination).is_ok() {
+            neighbours.insert(Neighbour {step: step.clone(), system: new_system});
+        }
+    }
+
+    neighbours
+}
+
+fn get_solution_path(
+    paths: &HashMap<GlassSystem, (Step, GlassSystem)>,
+    solution_node: &GlassSystem,
+) -> WaterSortSolution {
+    let mut steps = WaterSortSolution::default();
+
+    let mut current_node = solution_node.clone();
+    let mut parent_node = paths.get(&current_node);
+
+    while parent_node.is_some() {
+        // Valid unwrap due to while condition.
+        let (step, parent) = parent_node.unwrap();
+        steps.push_front(step.clone());
+        current_node = parent.clone();
+        parent_node = paths.get(&current_node);
+    }
+
+    steps
 }
