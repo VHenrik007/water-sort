@@ -23,6 +23,6 @@ impl WaterSortSolution {
     }
 
     pub fn new(steps: VecDeque<Step>) -> Self {
-        WaterSortSolution { 0: steps }
+        WaterSortSolution(steps)
     }
 }

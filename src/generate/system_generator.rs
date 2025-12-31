@@ -50,7 +50,10 @@ pub fn generate_random_system_with_seed(
         glasses.push(Glass::from_colors(&glass_colors)?);
     }
 
-    for _ in 0..2 {
+    // NOTE: Allowing only one empty glass
+    //       makes things much faster for smaller problems.
+    let no_empty_glasses = 2;
+    for _ in 0..no_empty_glasses {
         glasses.push(Glass::new());
     }
 

@@ -4,8 +4,8 @@ use std::time::{Duration, Instant};
 use thiserror::Error;
 
 use crate::game_elements::{
+    glass_system::{GlassSystem, GlassSystemError},
     step::Step,
-    glass_system::{GlassSystem, GlassSystemError}
 };
 use crate::solver::solution::WaterSortSolution;
 
@@ -70,7 +70,12 @@ impl Solver {
             let node = queue.pop_front().unwrap();
 
             let now = Instant::now();
-            let (valid_steps, neighbours) = build_neighbours(node, &mut system_id_map, &mut id_system_map, &mut system_id_counter);
+            let (valid_steps, neighbours) = build_neighbours(
+                node,
+                &mut system_id_map,
+                &mut id_system_map,
+                &mut system_id_counter,
+            );
             neighbour_building += now.elapsed();
 
             number_of_valid_steps += valid_steps as f32;
@@ -86,14 +91,27 @@ impl Solver {
                 paths.insert(neighbour.system, (neighbour.step.clone(), node));
 
                 if id_system_map.get(&neighbour.system).unwrap().is_solved() {
-                    println!("Avg. new neighbours per loop: {:.4} ({}/{})", sum_of_new_neighbours / number_of_iterations, sum_of_new_neighbours, number_of_iterations);
-                    println!("Avg. valid steps per loop: {:.4} ({}/{})", number_of_valid_steps / number_of_iterations, number_of_valid_steps, number_of_iterations);
+                    println!(
+                        "Avg. new neighbours per loop: {:.4} ({}/{})",
+                        sum_of_new_neighbours / number_of_iterations,
+                        sum_of_new_neighbours,
+                        number_of_iterations
+                    );
+                    println!(
+                        "Avg. valid steps per loop: {:.4} ({}/{})",
+                        number_of_valid_steps / number_of_iterations,
+                        number_of_valid_steps,
+                        number_of_iterations
+                    );
                     println!("Most new neighbours: {}", max_neighbours);
-                    println!("Time spent on building neighbours: {:.2?}", neighbour_building);
+                    println!(
+                        "Time spent on building neighbours: {:.2?}",
+                        neighbour_building
+                    );
                     let solution = get_solution_path(&paths, &neighbour.system);
                     let full_time = full_now.elapsed();
                     println!("Total time spent: {:.2?}", full_time);
-                    println!("Non-measured time: {:.2?}", full_time  - neighbour_building);
+                    println!("Non-measured time: {:.2?}", full_time - neighbour_building);
                     return Ok(solution);
                 }
             }
@@ -118,9 +136,13 @@ impl Solver {
     }
 }
 
-
 /// Collects all valid steps and creates all neighbours for each possible step.
-fn build_neighbours(system_id: SystemId, system_id_map: &mut HashMap<GlassSystem, SystemId>, id_system_map: &mut HashMap<SystemId, GlassSystem>, id_counter: &mut SystemId) -> (usize, HashSet<Neighbour>) {
+fn build_neighbours(
+    system_id: SystemId,
+    system_id_map: &mut HashMap<GlassSystem, SystemId>,
+    id_system_map: &mut HashMap<SystemId, GlassSystem>,
+    id_counter: &mut SystemId,
+) -> (usize, HashSet<Neighbour>) {
     let mut neighbours = HashSet::new();
     let system = id_system_map.get(&system_id).unwrap().clone();
     let valid_steps = system.get_valid_steps();
@@ -131,7 +153,10 @@ fn build_neighbours(system_id: SystemId, system_id_map: &mut HashMap<GlassSystem
             if system_id.is_none() {
                 system_id_map.insert(new_system.clone(), *id_counter);
                 id_system_map.insert(*id_counter, new_system);
-                neighbours.insert(Neighbour {step: step.clone(), system: *id_counter});
+                neighbours.insert(Neighbour {
+                    step: step.clone(),
+                    system: *id_counter,
+                });
                 *id_counter += 1;
             }
         }
@@ -146,14 +171,14 @@ fn get_solution_path(
 ) -> WaterSortSolution {
     let mut steps = WaterSortSolution::default();
 
-    let mut current_node = solution_node.clone();
+    let mut current_node = *solution_node;
     let mut parent_node = paths.get(&current_node);
 
     while parent_node.is_some() {
         // Valid unwrap due to while condition.
         let (step, parent) = parent_node.unwrap();
         steps.push_front(step.clone());
-        current_node = parent.clone();
+        current_node = *parent;
         parent_node = paths.get(&current_node);
     }
 

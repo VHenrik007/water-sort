@@ -1,4 +1,4 @@
-use colored::{*, Color as TextColor};
+use colored::{Color as TextColor, *};
 use std::fmt;
 
 /// A single unit that occupies a slot in a glass.
