@@ -152,9 +152,10 @@ impl GlassSystem {
         let mut valid_steps = Vec::new();
 
         for (src_idx, source) in self.get_state().iter().enumerate() {
-            if source.is_empty() {
+            if source.is_empty() || source.is_sorted() {
                 continue;
             }
+
             for (dest_idx, destination) in self.get_state().iter().enumerate() {
                 if destination.is_full() {
                     continue;

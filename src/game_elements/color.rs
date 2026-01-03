@@ -41,7 +41,6 @@ impl fmt::Display for Color {
                 9 => "■".bright_blue(),
                 10 => "■".bright_yellow(),
                 11 => "■".bright_cyan(),
-                12 => "■".bright_magenta(),
                 0 => "■".bright_green(),
                 _ => unreachable!(),
             };

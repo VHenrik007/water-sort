@@ -3,6 +3,7 @@ use std::hash::Hash;
 use std::time::{Duration, Instant};
 use thiserror::Error;
 
+use crate::game_elements::color::Color;
 use crate::game_elements::{
     glass_system::{GlassSystem, GlassSystemError},
     step::Step,
@@ -123,7 +124,8 @@ impl Solver {
         let full_now = Instant::now();
         let mut paths: HashMap<SystemId, (Step, SystemId)> = HashMap::new();
         let mut queue: SolverQueue<PrQueueNode> =
-            SolverQueue::new(QueueType::BinaryHeap(BinaryHeap::new()));
+            //SolverQueue::new(QueueType::BinaryHeap(BinaryHeap::new()));
+            SolverQueue::new(QueueType::Regular(VecDeque::new()));
         let mut found_systems: HashSet<SystemId> = HashSet::new();
 
         let mut system_id_counter: SystemId = 0;
@@ -278,15 +280,40 @@ fn get_solution_path(
     steps
 }
 
-/// A metric that determines how "far off" we are from a solution
-/// This can be any arbitrary logic.
-fn solution_value(_system: &GlassSystem) -> SolutionValue {
-    1
-    //alternating_color_metric(system)
+#[allow(dead_code)]
+enum SolutionValueMode {
+    Constant,
+    ColorCount,
+    AlternatingColors,
 }
 
-/*
-fn alternating_color_metric(system: &GlassSystem) -> SolutionValue {
+/// A metric that determines how "far off" we are from a solution
+fn solution_value(system: &GlassSystem) -> SolutionValue {
+    let mode = SolutionValueMode::ColorCount;
+    let empty_reward: SolutionValue = 1;
+    let value = match mode {
+        SolutionValueMode::Constant => 1,
+        SolutionValueMode::ColorCount => color_count_metric(system),
+        SolutionValueMode::AlternatingColors => alternating_color_metric(system),
+    };
+    value + empty_glass_reward(system, empty_reward)
+}
+
+/// Being empty means a bit more than being technically just one colour so it's
+/// separate from the other  ones.
+fn empty_glass_reward(system: &GlassSystem, reward: SolutionValue) -> SolutionValue {
+    let mut value: SolutionValue = 0;
+    for glass in system.get_state() {
+        if glass.is_empty() {
+            value += reward;
+        }
+    }
+
+    value
+}
+
+/// Counts the different kinds of colors in a glass.
+fn color_count_metric(system: &GlassSystem) -> SolutionValue {
     let mut value: SolutionValue = 0;
     let mut different_colors = HashSet::new();
     for glass in system.get_state() {
@@ -298,4 +325,19 @@ fn alternating_color_metric(system: &GlassSystem) -> SolutionValue {
 
     value
 }
-*/
+
+/// Counts the number of times different colors follow each other in a glass.
+fn alternating_color_metric(system: &GlassSystem) -> SolutionValue {
+    let mut value: SolutionValue = 0;
+    for glass in system.get_state() {
+        let mut last_color = Color::EMPTY;
+        for color in glass.glass {
+            if last_color != color {
+                value += 1;
+                last_color = color;
+            }
+        }
+    }
+
+    value
+}

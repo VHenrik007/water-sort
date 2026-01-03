@@ -27,7 +27,7 @@ pub enum WaterSortError {
 pub type WaterSortResult<T> = Result<T, WaterSortError>;
 
 fn main() -> WaterSortResult<()> {
-    let system = generate_random_system_with_seed(8, 43)?;
+    let system = generate_random_system_with_seed(12, 42)?;
     system.print_system_state();
 
     println!("Solving...");
