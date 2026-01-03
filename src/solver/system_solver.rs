@@ -1,343 +1,190 @@
-use std::collections::{BinaryHeap, HashMap, HashSet, VecDeque};
-use std::hash::Hash;
-use std::time::{Duration, Instant};
-use thiserror::Error;
+use std::collections::HashSet;
 
-use crate::game_elements::color::Color;
-use crate::game_elements::{
-    glass_system::{GlassSystem, GlassSystemError},
-    step::Step,
+use crate::game_elements::glass_system::GlassSystem;
+use crate::solver::data_structures::{
+    EvaluatedNode, Neighbour, Paths, SolverQueue, SystemDictionary,
 };
 use crate::solver::solution::WaterSortSolution;
+use crate::solver::{solution_value, SolutionValueMode, SolverResult, SystemId};
 
-/// Custom error for the solver.
-#[derive(Debug, Error)]
-pub enum SolverError {
-    /// Derived from the GlassSystemError if an issue happens on that level.
-    #[error(transparent)]
-    GlassSystemError(#[from] GlassSystemError),
-    /// The solver might not find a valid solution in all cases.
-    #[error("No solution found!")]
-    NoSolutionError,
-    /// Even if a solution is found, for some reason if that ends up
-    /// invalid, this error might be useful for debugging.
-    #[error("Invalid solution at step {0}")]
-    InvalidSolution(usize),
-}
+/// Regular BFS, guaranteed shortest path, but takes ages.
+pub fn bfs_shortest_path(start_system: &GlassSystem) -> SolverResult<WaterSortSolution> {
+    let mut queue: SolverQueue<SystemId> = SolverQueue::regular();
+    let mut paths: Paths = Paths::new();
 
-pub type SolverResult<T> = Result<T, SolverError>;
-type SystemId = u32;
-type SolutionValue = u32;
+    // Maps between systems and their IDs. Used to avoid too much cloning of entire states, as well as
+    // checking if a given system is already found or not (although paths could be used for that too.)
+    // TODO: A different graph-building approach would be to always only store the steps
+    //       and at each evaluation reconstruct the system. To me this sounds intuitively
+    //       slower but memory-wise it would definitely be much better.
+    let mut system_dictionary = SystemDictionary::new();
+    system_dictionary.add_system(start_system.clone());
 
-/// These are being stored in the main priority queue
-/// of the BFS. The system and it's corresponding
-/// "closeness" to a solution.
-struct PrQueueNode {
-    /// ID of the glass system
-    system_id: SystemId,
-    /// Some metric determining how good this states is compared to a final soltuion.
-    /// The exact metrix is defined elsewhere.
-    solution_value: SolutionValue,
-}
+    queue.push(*system_dictionary.get_id(start_system).unwrap());
 
-impl PartialEq for PrQueueNode {
-    fn eq(&self, other: &Self) -> bool {
-        other.solution_value.eq(&self.solution_value)
-    }
-}
-impl Eq for PrQueueNode {}
+    while !queue.is_empty() {
+        let node = queue.pop().unwrap();
 
-impl Ord for PrQueueNode {
-    /// To make the binary heap a minimum heap we switch order of comparison here
-    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
-        other
-            .solution_value
-            .cmp(&self.solution_value)
-            .then_with(|| self.system_id.cmp(&other.system_id))
-    }
-}
+        let neighbours = build_neighbours(node, &mut system_dictionary);
 
-impl PartialOrd for PrQueueNode {
-    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
-        Some(self.cmp(other))
-    }
-}
+        for neighbour in neighbours {
+            queue.push(neighbour.system);
+            paths.insert(neighbour.system, (neighbour.step.clone(), node));
 
-#[allow(dead_code)]
-enum QueueType<T> {
-    Regular(VecDeque<T>),
-    BinaryHeap(BinaryHeap<T>),
-}
-
-struct SolverQueue<T> {
-    queue: QueueType<T>,
-}
-
-impl<T: Ord> SolverQueue<T> {
-    pub fn new(queue: QueueType<T>) -> Self {
-        SolverQueue { queue }
-    }
-
-    pub fn push(&mut self, elem: T) {
-        match self.queue {
-            QueueType::BinaryHeap(ref mut queue) => {
-                queue.push(elem);
-            }
-            QueueType::Regular(ref mut queue) => {
-                queue.push_back(elem);
+            if system_dictionary
+                .get_system(&neighbour.system)
+                .unwrap()
+                .is_solved()
+            {
+                return Ok(retrace_solution_path(&paths, &neighbour.system));
             }
         }
     }
 
-    pub fn pop(&mut self) -> Option<T> {
-        match self.queue {
-            QueueType::BinaryHeap(ref mut queue) => queue.pop(),
-            QueueType::Regular(ref mut queue) => queue.pop_front(),
-        }
-    }
-
-    pub fn len(&self) -> usize {
-        match &self.queue {
-            QueueType::BinaryHeap(queue) => queue.len(),
-            QueueType::Regular(queue) => queue.len(),
-        }
-    }
-
-    pub fn is_empty(&self) -> bool {
-        self.len() == 0
-    }
+    Err(super::SolverError::NoSolutionError)
 }
 
-pub struct Solver;
+/// Regular DFS, can be very fast but might find a very long path.
+pub fn dfs_shortest_path(start_system: &GlassSystem) -> SolverResult<WaterSortSolution> {
+    let mut queue: SolverQueue<SystemId> = SolverQueue::stack();
+    let mut paths: Paths = Paths::new();
 
-#[derive(PartialEq, Eq, Hash)]
-pub struct Neighbour {
-    /// The resulting system
-    pub system: SystemId,
-    /// The step that leads to this resulting system
-    pub step: Step,
-}
+    let mut system_dictionary = SystemDictionary::new();
+    system_dictionary.add_system(start_system.clone());
 
-impl Solver {
-    /// BFS for constructing the valid-steps graph.
-    pub fn find_solution(&self, start_system: &GlassSystem) -> SolverResult<WaterSortSolution> {
-        let full_now = Instant::now();
-        let mut paths: HashMap<SystemId, (Step, SystemId)> = HashMap::new();
-        let mut queue: SolverQueue<PrQueueNode> =
-            //SolverQueue::new(QueueType::BinaryHeap(BinaryHeap::new()));
-            SolverQueue::new(QueueType::Regular(VecDeque::new()));
-        let mut found_systems: HashSet<SystemId> = HashSet::new();
+    queue.push(*system_dictionary.get_id(start_system).unwrap());
 
-        let mut system_id_counter: SystemId = 0;
-        let mut system_id_map: HashMap<GlassSystem, SystemId> = HashMap::new();
-        let mut id_system_map: HashMap<SystemId, GlassSystem> = HashMap::new();
+    while !queue.is_empty() {
+        let node = queue.pop().unwrap();
 
-        let root = start_system.clone();
+        let neighbours = build_neighbours(node, &mut system_dictionary);
 
-        system_id_map.insert(root.clone(), system_id_counter);
-        id_system_map.insert(system_id_counter, root.clone());
-        system_id_counter += 1;
+        for neighbour in neighbours {
+            queue.push(neighbour.system);
+            paths.insert(neighbour.system, (neighbour.step.clone(), node));
 
-        let root_node = PrQueueNode {
-            system_id: *system_id_map.get(&root).unwrap(),
-            solution_value: solution_value(&root),
-        };
-        queue.push(root_node);
-        // queue.push(root_node);
-
-        let mut number_of_iterations = 0.;
-        let mut number_of_valid_steps = 0.;
-        let mut sum_of_new_neighbours = 0.;
-        let mut max_neighbours = 0;
-
-        let mut neighbour_building = Duration::new(0, 0);
-
-        while !queue.is_empty() {
-            number_of_iterations += 1.;
-            // Unwrap is fair due to the while condition
-            let node = queue.pop().unwrap();
-            // let node = queue.pop().unwrap();
-
-            let now = Instant::now();
-            let (valid_steps, neighbours) = build_neighbours(
-                node.system_id,
-                &mut system_id_map,
-                &mut id_system_map,
-                &mut system_id_counter,
-            );
-            neighbour_building += now.elapsed();
-
-            number_of_valid_steps += valid_steps as f32;
-            sum_of_new_neighbours += neighbours.len() as f32;
-            if neighbours.len() > max_neighbours {
-                max_neighbours = neighbours.len()
-            }
-
-            for neighbour in neighbours {
-                let neighbour_node = PrQueueNode {
-                    system_id: neighbour.system,
-                    solution_value: solution_value(id_system_map.get(&neighbour.system).unwrap()),
-                };
-                queue.push(neighbour_node);
-                // queue.push(neighbour_node);
-                found_systems.insert(neighbour.system);
-
-                paths.insert(neighbour.system, (neighbour.step.clone(), node.system_id));
-
-                if id_system_map.get(&neighbour.system).unwrap().is_solved() {
-                    println!(
-                        "Avg. new neighbours per loop: {:.4} ({}/{})",
-                        sum_of_new_neighbours / number_of_iterations,
-                        sum_of_new_neighbours,
-                        number_of_iterations
-                    );
-                    println!(
-                        "Avg. valid steps per loop: {:.4} ({}/{})",
-                        number_of_valid_steps / number_of_iterations,
-                        number_of_valid_steps,
-                        number_of_iterations
-                    );
-                    println!("Most new neighbours: {}", max_neighbours);
-                    println!(
-                        "Time spent on building neighbours: {:.2?}",
-                        neighbour_building
-                    );
-                    println!("Queue size at the end: {}", queue.len());
-                    let solution = get_solution_path(&paths, &neighbour.system);
-                    let full_time = full_now.elapsed();
-                    println!("Total time spent: {:.2?}", full_time);
-                    println!("Non-measured time: {:.2?}", full_time - neighbour_building);
-                    return Ok(solution);
-                }
+            if system_dictionary
+                .get_system(&neighbour.system)
+                .unwrap()
+                .is_solved()
+            {
+                return Ok(retrace_solution_path(&paths, &neighbour.system));
             }
         }
-
-        Err(SolverError::NoSolutionError)
     }
 
-    /// Given a possible solution, iterate through the steps and
-    /// attempt to solve the game by mutating the starting system.
-    pub fn solve(
-        &self,
-        mut start_system: GlassSystem,
-        solution: &WaterSortSolution,
-    ) -> SolverResult<GlassSystem> {
-        for (idx, step) in solution.steps().iter().enumerate() {
-            start_system
-                .try_pour(step.source, step.destination)
-                .map_err(|_| SolverError::InvalidSolution(idx))?;
-        }
-        Ok(start_system)
-    }
+    Err(super::SolverError::NoSolutionError)
 }
 
-/// Collects all valid steps and creates all neighbours for each possible step.
+/// Dijkstra-like for constructing the valid-steps graph using heuristics to narrow the search.
+/// This does not guarantee shortest path.
+/// NOTE: Using constant evaluation mode is more or less equivalent with the DFS approach.
+//  TODO: Look up how A* is different.
+pub fn heuristic_dijkstra_search(
+    start_system: &GlassSystem,
+    evaluation_mode: &SolutionValueMode,
+) -> SolverResult<WaterSortSolution> {
+    let mut queue: SolverQueue<EvaluatedNode> = SolverQueue::priority();
+    let mut paths: Paths = Paths::new();
+
+    // Maps between systems and their IDs. Used to avoid too much cloning of entire states, as well as
+    // checking if a given system is already found or not (although paths could be used for that too.)
+    // TODO: A different graph-building approach would be to always only store the steps
+    //       and at each evaluation reconstruct the system. To me this sounds intuitively
+    //       slower but memory-wise it would definitely be much better.
+    let mut system_dictionary = SystemDictionary::new();
+    system_dictionary.add_system(start_system.clone());
+
+    queue.push(EvaluatedNode {
+        system_id: *system_dictionary.get_id(start_system).unwrap(),
+        solution_value: solution_value(start_system, evaluation_mode),
+    });
+
+    while !queue.is_empty() {
+        let node = queue.pop().unwrap();
+
+        let neighbours = build_neighbours(node.system_id, &mut system_dictionary);
+
+        for neighbour in neighbours {
+            let neighbour_node = EvaluatedNode {
+                system_id: neighbour.system,
+                solution_value: solution_value(
+                    system_dictionary.get_system(&neighbour.system).unwrap(),
+                    evaluation_mode,
+                ),
+            };
+            queue.push(neighbour_node);
+
+            paths.insert(neighbour.system, (neighbour.step.clone(), node.system_id));
+
+            if system_dictionary
+                .get_system(&neighbour.system)
+                .unwrap()
+                .is_solved()
+            {
+                return Ok(retrace_solution_path(&paths, &neighbour.system));
+            }
+        }
+    }
+
+    Err(super::SolverError::NoSolutionError)
+}
+
+/// Given a possible solution, iterate through the steps and
+/// attempt to solve the game by mutating the starting system.
+pub fn solve(
+    mut start_system: GlassSystem,
+    solution: &WaterSortSolution,
+) -> SolverResult<GlassSystem> {
+    for (idx, step) in solution.steps().iter().enumerate() {
+        start_system
+            .try_pour(step.source, step.destination)
+            .map_err(|_| super::SolverError::InvalidSolution(idx))?;
+    }
+    Ok(start_system)
+}
+
+/// Collects all valid steps and creates all new undiscovered neighbours for each possible step.
 fn build_neighbours(
     system_id: SystemId,
-    system_id_map: &mut HashMap<GlassSystem, SystemId>,
-    id_system_map: &mut HashMap<SystemId, GlassSystem>,
-    id_counter: &mut SystemId,
-) -> (usize, HashSet<Neighbour>) {
+    system_dictionary: &mut SystemDictionary,
+) -> HashSet<Neighbour> {
     let mut neighbours = HashSet::new();
-    let system = id_system_map.get(&system_id).unwrap().clone();
+
+    let system = system_dictionary.get_system(&system_id).unwrap().clone();
     let valid_steps = system.get_valid_steps();
+
     for step in &valid_steps {
-        let mut new_system = system.clone();
-        if new_system.try_pour(step.source, step.destination).is_ok() {
-            let system_id = system_id_map.get(&new_system);
-            if system_id.is_none() {
-                system_id_map.insert(new_system.clone(), *id_counter);
-                id_system_map.insert(*id_counter, new_system);
-                neighbours.insert(Neighbour {
-                    step: step.clone(),
-                    system: *id_counter,
-                });
-                *id_counter += 1;
-            }
+        let mut next_system = system.clone();
+
+        if next_system.try_pour(step.source, step.destination).is_err() {
+            println!("Some pouring failed, this should not happen!");
+            println!(
+                "If solutions are not found then this is a blocking issue, otherwise just warning."
+            );
+            continue;
+        }
+
+        if system_dictionary.get_id(&next_system).is_none() {
+            neighbours.insert(Neighbour {
+                step: step.clone(),
+                system: system_dictionary.add_system(next_system),
+            });
         }
     }
 
-    (valid_steps.len(), neighbours)
+    neighbours
 }
 
-fn get_solution_path(
-    paths: &HashMap<SystemId, (Step, SystemId)>,
-    solution_node: &SystemId,
-) -> WaterSortSolution {
-    let mut steps = WaterSortSolution::default();
+/// Builds the solution based on the graph path.
+fn retrace_solution_path(paths: &Paths, solution_node: &SystemId) -> WaterSortSolution {
+    let mut steps = WaterSortSolution::new();
 
-    let mut current_node = *solution_node;
-    let mut parent_node = paths.get(&current_node);
-
-    while parent_node.is_some() {
-        // Valid unwrap due to while condition.
-        let (step, parent) = parent_node.unwrap();
-        steps.push_front(step.clone());
-        current_node = *parent;
-        parent_node = paths.get(&current_node);
+    let mut parent_node = paths.get(solution_node);
+    while let Some((step, parent)) = parent_node {
+        steps.push(step.clone());
+        parent_node = paths.get(parent);
     }
 
     steps
-}
-
-#[allow(dead_code)]
-enum SolutionValueMode {
-    Constant,
-    ColorCount,
-    AlternatingColors,
-}
-
-/// A metric that determines how "far off" we are from a solution
-fn solution_value(system: &GlassSystem) -> SolutionValue {
-    let mode = SolutionValueMode::ColorCount;
-    let empty_reward: SolutionValue = 1;
-    let value = match mode {
-        SolutionValueMode::Constant => 1,
-        SolutionValueMode::ColorCount => color_count_metric(system),
-        SolutionValueMode::AlternatingColors => alternating_color_metric(system),
-    };
-    value + empty_glass_reward(system, empty_reward)
-}
-
-/// Being empty means a bit more than being technically just one colour so it's
-/// separate from the other  ones.
-fn empty_glass_reward(system: &GlassSystem, reward: SolutionValue) -> SolutionValue {
-    let mut value: SolutionValue = 0;
-    for glass in system.get_state() {
-        if glass.is_empty() {
-            value += reward;
-        }
-    }
-
-    value
-}
-
-/// Counts the different kinds of colors in a glass.
-fn color_count_metric(system: &GlassSystem) -> SolutionValue {
-    let mut value: SolutionValue = 0;
-    let mut different_colors = HashSet::new();
-    for glass in system.get_state() {
-        for color in glass.glass {
-            different_colors.insert(color);
-        }
-        value += different_colors.len() as SolutionValue;
-    }
-
-    value
-}
-
-/// Counts the number of times different colors follow each other in a glass.
-fn alternating_color_metric(system: &GlassSystem) -> SolutionValue {
-    let mut value: SolutionValue = 0;
-    for glass in system.get_state() {
-        let mut last_color = Color::EMPTY;
-        for color in glass.glass {
-            if last_color != color {
-                value += 1;
-                last_color = color;
-            }
-        }
-    }
-
-    value
 }

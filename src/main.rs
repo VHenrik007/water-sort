@@ -4,7 +4,7 @@ use thiserror::Error;
 use water_sort::{
     game_elements::{glass::GlassError, glass_system::GlassSystemError},
     generate::system_generator::{generate_random_system_with_seed, SystemGeneratorError},
-    solver::system_solver::{Solver, SolverError},
+    solver::{heuristic_dijkstra_search, solve, SolutionValueMode, SolverError},
 };
 
 /// Custom error for the solver.
@@ -31,21 +31,18 @@ fn main() -> WaterSortResult<()> {
     system.print_system_state();
 
     println!("Solving...");
-    let solver = Solver {};
 
     let now = Instant::now();
-    let solution_steps = solver.find_solution(&system)?;
+    let solution_steps = heuristic_dijkstra_search(&system, &SolutionValueMode::ColorCount)?;
     let elapsed = now.elapsed();
 
-    let now = Instant::now();
-    let solved_system = solver.solve(system, &solution_steps)?;
-    let solved_time = now.elapsed();
+    let solved_system = solve(system, &solution_steps)?;
+
     if solved_system.is_solved() {
         println!(
-            "Found a {} step solution in {:.2?} and solved in {:.2?}",
+            "Found a {} step solution in {:.2?}",
             solution_steps.len(),
             elapsed,
-            solved_time
         );
     } else {
         println!("Incomplete solution!")
