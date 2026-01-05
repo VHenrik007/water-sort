@@ -1,6 +1,6 @@
 use std::fmt::Display;
 
-#[derive(Hash, PartialEq, Eq, Clone)]
+#[derive(Debug, Hash, PartialEq, Eq, Clone)]
 pub struct Step {
     pub source: usize,
     pub destination: usize,

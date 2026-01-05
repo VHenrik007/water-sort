@@ -162,7 +162,10 @@ fn build_neighbours(
             println!(
                 "If solutions are not found then this is a blocking issue, otherwise just warning."
             );
-            continue;
+            println!("FROM:");
+            system.print_system_state();
+            println!("TO: {}", step);
+            panic!();
         }
 
         if system_dictionary.get_id(&next_system).is_none() {

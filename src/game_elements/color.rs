@@ -29,6 +29,7 @@ impl fmt::Display for Color {
             write!(f, "{}", "□".white())
         } else {
             // Cycle through available colors based on ID
+            // TODO: Make it more granular somehow using some range or idk.
             let display_str = match self.id % 8 {
                 1 => "■".red(),
                 2 => "■".green(),

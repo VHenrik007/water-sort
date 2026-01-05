@@ -167,8 +167,8 @@ impl GlassSystem {
 
                 if destination.is_empty() || source.top() == destination.top() {
                     valid_steps.push(Step {
-                        source: source.id,
-                        destination: destination.id,
+                        source: src_idx,
+                        destination: dest_idx,
                     })
                 }
             }
