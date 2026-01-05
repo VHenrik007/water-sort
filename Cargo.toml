@@ -18,5 +18,9 @@ strip = "symbols"
 debug = true
 
 [[bench]]
-name = "water_sort_benchmark"
+name = "heuristic_water_sort_benchmark"
+harness = false
+
+[[bench]]
+name = "bfs_water_sort_benchmark"
 harness = false

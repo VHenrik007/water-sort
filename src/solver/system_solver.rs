@@ -175,7 +175,6 @@ fn build_neighbours(
             });
         }
     }
-
     neighbours
 }
 

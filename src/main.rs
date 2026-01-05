@@ -3,8 +3,8 @@ use thiserror::Error;
 
 use water_sort::{
     game_elements::{glass::GlassError, glass_system::GlassSystemError},
-    generate::system_generator::{generate_random_system_with_seed, SystemGeneratorError},
-    solver::{heuristic_dijkstra_search, solve, SolutionValueMode, SolverError},
+    generate::system_generator::{SystemGeneratorError, generate_random_system_with_seed},
+    solver::{SolutionValueMode, SolverError, bfs_shortest_path, heuristic_dijkstra_search, solve},
 };
 
 /// Custom error for the solver.
@@ -33,7 +33,8 @@ fn main() -> WaterSortResult<()> {
     println!("Solving...");
 
     let now = Instant::now();
-    let solution_steps = heuristic_dijkstra_search(&system, &SolutionValueMode::ColorCount)?;
+    //let solution_steps = heuristic_dijkstra_search(&system, &SolutionValueMode::ColorCount)?;
+    let solution_steps = bfs_shortest_path(&system)?;
     let elapsed = now.elapsed();
 
     let solved_system = solve(system, &solution_steps)?;
