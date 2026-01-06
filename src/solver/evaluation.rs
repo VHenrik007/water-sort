@@ -47,7 +47,7 @@ fn color_count_metric(system: &GlassSystem) -> SolutionValue {
     let mut value: SolutionValue = 0;
     let mut different_colors = HashSet::new();
     for glass in system.get_state() {
-        for color in glass.glass {
+        for color in &glass.glass {
             different_colors.insert(color);
         }
         value += different_colors.len() as SolutionValue;
@@ -60,10 +60,10 @@ fn alternating_color_metric(system: &GlassSystem) -> SolutionValue {
     let mut value: SolutionValue = 0;
     for glass in system.get_state() {
         let mut last_color = Color::EMPTY;
-        for color in glass.glass {
-            if last_color != color {
+        for color in &glass.glass {
+            if last_color != *color {
                 value += 1;
-                last_color = color;
+                last_color = color.clone();
             }
         }
     }

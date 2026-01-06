@@ -6,7 +6,6 @@ use crate::game_elements::{
     color::Color,
     glass::{Glass, GlassError},
     step::Step,
-    GLASS_CAPACITY,
 };
 
 /// Custom error for systems.
@@ -24,7 +23,7 @@ pub enum GlassSystemError {
 pub type GlassSystemResult<T> = Result<T, GlassSystemError>;
 
 /// A system should be the collection of the glasses and basic logic over them.
-#[derive(Clone, Default, Eq)]
+#[derive(Clone, Debug, Default, Eq)]
 pub struct GlassSystem {
     system: Vec<Glass>,
 }
@@ -121,7 +120,7 @@ impl GlassSystem {
         print!("╭───╮ ");
         println!();
 
-        for row in (0..=GLASS_CAPACITY).rev() {
+        for row in (0..=source.glass.len()).rev() {
             print!("│ {} │ ", source.glass[row]);
             print!("│ {} │ ", destination.glass[row]);
             println!();
@@ -173,7 +172,7 @@ impl GlassSystem {
         }
         println!();
 
-        for row in (0..=GLASS_CAPACITY).rev() {
+        for row in (0..self.system[0].glass.len()).rev() {
             for glass in self.system.iter() {
                 print!("│ {} │ ", glass.glass[row]);
             }
