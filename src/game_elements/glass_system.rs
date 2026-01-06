@@ -114,9 +114,7 @@ impl GlassSystem {
         Ok(())
     }
 
-    fn display_pour(source: &Glass, destination: &Glass, source_idx: usize, dest_idx: usize) {
-        print!(" {source_idx}    ");
-        print!(" {dest_idx}    ");
+    fn display_pour(source: &Glass, destination: &Glass) {
         println!();
 
         print!("╭───╮ ");
@@ -141,7 +139,7 @@ impl GlassSystem {
     ) -> GlassSystemResult<()> {
         if debug {
             println!("Before pouring:");
-            Self::display_pour(source, destination, source.id, destination.id);
+            Self::display_pour(source, destination);
             println!();
         }
 
@@ -154,7 +152,7 @@ impl GlassSystem {
 
         if debug {
             println!("After pouring:");
-            Self::display_pour(source, destination, source.id, destination.id);
+            Self::display_pour(source, destination);
             println!("-----------------");
         }
         Ok(())

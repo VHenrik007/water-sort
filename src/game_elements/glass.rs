@@ -1,12 +1,8 @@
 use std::hash::Hash;
-use std::sync::atomic::{AtomicUsize, Ordering};
 use thiserror::Error;
 
 use crate::game_elements::color::Color;
 use crate::game_elements::GLASS_CAPACITY;
-
-/// Seen somewhere that this is an easy way to add new IDs.
-static GLASS_ID_COUNTER: AtomicUsize = AtomicUsize::new(0);
 
 /// A single glass in the game
 #[derive(Debug, Clone, Copy)]
@@ -16,8 +12,6 @@ pub struct Glass {
     /// The index of the top element. If the glass is full
     /// it's `GLASS_CAPACITY`, and then -1 each time we pour out.
     pub top: usize,
-    /// ID of the glass.
-    pub id: usize,
 }
 
 impl PartialEq for Glass {
@@ -64,7 +58,6 @@ impl Glass {
         Glass {
             top: 0,
             glass: [Color::EMPTY; GLASS_CAPACITY + 1],
-            id: GLASS_ID_COUNTER.fetch_add(1, Ordering::Relaxed),
         }
     }
 
@@ -81,7 +74,6 @@ impl Glass {
                 array[1..].copy_from_slice(&colors[0..GLASS_CAPACITY]);
                 array
             },
-            id: GLASS_ID_COUNTER.fetch_add(1, Ordering::Relaxed),
         })
     }
 
