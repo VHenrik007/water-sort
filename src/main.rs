@@ -1,13 +1,12 @@
+use clap::Parser;
 use std::time::Instant;
 use thiserror::Error;
-use clap::Parser;
 
 use water_sort::{
     game_elements::{glass::GlassError, glass_system::GlassSystemError},
-    generate::system_generator::{SystemGeneratorError, generate_random_system_with_seed},
-    solver::{SolutionValueMode, SolverError, bfs_shortest_path, heuristic_dijkstra_search, solve},
+    generate::system_generator::{generate_random_system_with_seed, SystemGeneratorError},
+    solver::{bfs_shortest_path, heuristic_dijkstra_search, solve, SolutionValueMode, SolverError},
 };
-
 
 /// Custom error for the solver.
 #[derive(Debug, Error)]
@@ -30,18 +29,18 @@ pub type WaterSortResult<T> = Result<T, WaterSortError>;
 
 #[derive(Debug, Clone)]
 enum SearchMethod {
-    BFS,
+    Bfs,
     Heuristic,
 }
 
 impl clap::ValueEnum for SearchMethod {
     fn value_variants<'a>() -> &'a [Self] {
-        &[Self::BFS, Self::Heuristic]
+        &[Self::Bfs, Self::Heuristic]
     }
 
     fn to_possible_value(&self) -> Option<clap::builder::PossibleValue> {
         match self {
-            Self::BFS => Some(clap::builder::PossibleValue::new("BFS")),
+            Self::Bfs => Some(clap::builder::PossibleValue::new("BFS")),
             Self::Heuristic => Some(clap::builder::PossibleValue::new("Heuristic")),
         }
     }
@@ -98,12 +97,12 @@ fn main() -> WaterSortResult<()> {
 
     let now = Instant::now();
     let solution_steps = match args.search_method {
-        SearchMethod::BFS => bfs_shortest_path(&system),
+        SearchMethod::Bfs => bfs_shortest_path(&system),
         SearchMethod::Heuristic => {
             let heuristic = match args.heuristic_evaluation {
                 HeuristicEvaluation::Constant => SolutionValueMode::Constant,
                 HeuristicEvaluation::ColorCounting => SolutionValueMode::ColorCount,
-                HeuristicEvaluation::ColorAlternation => SolutionValueMode::AlternatingColors
+                HeuristicEvaluation::ColorAlternation => SolutionValueMode::AlternatingColors,
             };
             heuristic_dijkstra_search(&system, &heuristic)
         }

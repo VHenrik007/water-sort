@@ -32,11 +32,15 @@ pub struct GlassSystem {
 impl Hash for GlassSystem {
     fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
         // Sort glass hashes for order-independent hashing
-        let mut hashes: Vec<u64> = self.system.iter().map(|glass| {
-            let mut hasher = std::collections::hash_map::DefaultHasher::new();
-            glass.hash(&mut hasher);
-            hasher.finish()
-        }).collect();
+        let mut hashes: Vec<u64> = self
+            .system
+            .iter()
+            .map(|glass| {
+                let mut hasher = std::collections::hash_map::DefaultHasher::new();
+                glass.hash(&mut hasher);
+                hasher.finish()
+            })
+            .collect();
 
         hashes.sort_unstable();
         hashes.hash(state);
@@ -48,20 +52,20 @@ impl PartialEq for GlassSystem {
         if self.system.len() != other.system.len() {
             return false;
         }
-        
+
         // Sort both systems by glass hash for comparison
         let mut self_sorted = self.system.clone();
         let mut other_sorted = other.system.clone();
-        
+
         let sort_key = |glass: &Glass| {
             let mut hasher = std::collections::hash_map::DefaultHasher::new();
             glass.hash(&mut hasher);
             hasher.finish()
         };
-        
+
         self_sorted.sort_by_key(sort_key);
         other_sorted.sort_by_key(sort_key);
-        
+
         self_sorted == other_sorted
     }
 }
