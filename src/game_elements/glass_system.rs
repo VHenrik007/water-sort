@@ -1,4 +1,4 @@
-use std::{collections::HashMap, hash::{Hash, Hasher}};
+use std::hash::{Hash, Hasher};
 
 use thiserror::Error;
 

@@ -1,11 +1,13 @@
 use std::time::Instant;
 use thiserror::Error;
+use clap::Parser;
 
 use water_sort::{
     game_elements::{glass::GlassError, glass_system::GlassSystemError},
     generate::system_generator::{SystemGeneratorError, generate_random_system_with_seed},
     solver::{SolutionValueMode, SolverError, bfs_shortest_path, heuristic_dijkstra_search, solve},
 };
+
 
 /// Custom error for the solver.
 #[derive(Debug, Error)]
@@ -26,15 +28,86 @@ pub enum WaterSortError {
 
 pub type WaterSortResult<T> = Result<T, WaterSortError>;
 
+#[derive(Debug, Clone)]
+enum SearchMethod {
+    BFS,
+    Heuristic,
+}
+
+impl clap::ValueEnum for SearchMethod {
+    fn value_variants<'a>() -> &'a [Self] {
+        &[Self::BFS, Self::Heuristic]
+    }
+
+    fn to_possible_value(&self) -> Option<clap::builder::PossibleValue> {
+        match self {
+            Self::BFS => Some(clap::builder::PossibleValue::new("BFS")),
+            Self::Heuristic => Some(clap::builder::PossibleValue::new("Heuristic")),
+        }
+    }
+}
+
+#[derive(Debug, Clone)]
+enum HeuristicEvaluation {
+    Constant,
+    ColorCounting,
+    ColorAlternation,
+}
+
+impl clap::ValueEnum for HeuristicEvaluation {
+    fn value_variants<'a>() -> &'a [Self] {
+        &[Self::Constant, Self::ColorCounting, Self::ColorAlternation]
+    }
+
+    fn to_possible_value(&self) -> Option<clap::builder::PossibleValue> {
+        match self {
+            Self::Constant => Some(clap::builder::PossibleValue::new("Constant")),
+            Self::ColorCounting => Some(clap::builder::PossibleValue::new("ColorCounting")),
+            Self::ColorAlternation => Some(clap::builder::PossibleValue::new("ColorAlternation")),
+        }
+    }
+}
+
+#[derive(Parser, Debug)]
+#[command(version, about, long_about = None)]
+struct Args {
+    /// The search method: ["BFS", "Heuristic"]
+    #[arg(short, long)]
+    search_method: SearchMethod,
+
+    /// The search method: ["constant (dfs)", "color-count", "alternatin-colors"]
+    #[arg(short, long)]
+    heuristic_evaluation: HeuristicEvaluation,
+
+    /// Random seed for the system genration
+    #[arg(short, long)]
+    random_seed: u64,
+
+    /// Number of colors
+    #[arg(short, long)]
+    number_of_colors: usize,
+}
+
 fn main() -> WaterSortResult<()> {
-    let system = generate_random_system_with_seed(8, 42)?;
+    let args = Args::parse();
+
+    let system = generate_random_system_with_seed(args.number_of_colors, args.random_seed)?;
     system.print_system_state();
 
     println!("Solving...");
 
     let now = Instant::now();
-    //let solution_steps = heuristic_dijkstra_search(&system, &SolutionValueMode::ColorCount)?;
-    let solution_steps = bfs_shortest_path(&system)?;
+    let solution_steps = match args.search_method {
+        SearchMethod::BFS => bfs_shortest_path(&system),
+        SearchMethod::Heuristic => {
+            let heuristic = match args.heuristic_evaluation {
+                HeuristicEvaluation::Constant => SolutionValueMode::Constant,
+                HeuristicEvaluation::ColorCounting => SolutionValueMode::ColorCount,
+                HeuristicEvaluation::ColorAlternation => SolutionValueMode::AlternatingColors
+            };
+            heuristic_dijkstra_search(&system, &heuristic)
+        }
+    }?;
     let elapsed = now.elapsed();
 
     let solved_system = solve(system, &solution_steps)?;

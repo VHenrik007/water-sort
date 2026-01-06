@@ -44,38 +44,6 @@ pub fn bfs_shortest_path(start_system: &GlassSystem) -> SolverResult<WaterSortSo
     Err(super::SolverError::NoSolutionError)
 }
 
-/// Regular DFS, can be very fast but might find a very long path.
-pub fn dfs_shortest_path(start_system: &GlassSystem) -> SolverResult<WaterSortSolution> {
-    let mut queue: SolverQueue<SystemId> = SolverQueue::stack();
-    let mut paths: Paths = Paths::new();
-
-    let mut system_dictionary = SystemDictionary::new();
-    system_dictionary.add_system(start_system.clone());
-
-    queue.push(*system_dictionary.get_id(start_system).unwrap());
-
-    while !queue.is_empty() {
-        let node = queue.pop().unwrap();
-
-        let neighbours = build_neighbours(node, &mut system_dictionary);
-
-        for neighbour in neighbours {
-            queue.push(neighbour.system);
-            paths.insert(neighbour.system, (neighbour.step.clone(), node));
-
-            if system_dictionary
-                .get_system(&neighbour.system)
-                .unwrap()
-                .is_solved()
-            {
-                return Ok(retrace_solution_path(&paths, &neighbour.system));
-            }
-        }
-    }
-
-    Err(super::SolverError::NoSolutionError)
-}
-
 /// Dijkstra-like for constructing the valid-steps graph using heuristics to narrow the search.
 /// This does not guarantee shortest path.
 /// NOTE: Using constant evaluation mode is more or less equivalent with the DFS approach.

@@ -29,12 +29,6 @@ impl<T: Ord> SolverQueue<T> {
         }
     }
 
-    pub fn stack() -> Self {
-        SolverQueue {
-            queue: QueueType::Stack(VecDeque::new()),
-        }
-    }
-
     /// Constructs the type for the priority queue.
     pub fn priority() -> Self {
         SolverQueue {

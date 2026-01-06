@@ -8,7 +8,7 @@ use thiserror::Error;
 use crate::game_elements::glass_system::GlassSystemError;
 
 pub use evaluation::{solution_value, SolutionValueMode};
-pub use system_solver::{bfs_shortest_path, dfs_shortest_path, heuristic_dijkstra_search, solve};
+pub use system_solver::{bfs_shortest_path, heuristic_dijkstra_search, solve};
 
 /// Custom error for the solver.
 #[derive(Debug, Error)]
