@@ -1,5 +1,7 @@
-use colored::{Color as TextColor, *};
+use colored::*;
 use std::fmt;
+
+use crate::game_elements::color_palette::colorize_by_id;
 
 /// A single unit that occupies a slot in a glass.
 #[derive(Debug, PartialEq, Clone, Copy, Hash, Eq)]
@@ -28,23 +30,7 @@ impl fmt::Display for Color {
         if self.is_empty() {
             write!(f, "{}", "□".white())
         } else {
-            // Cycle through available colors based on ID
-            // TODO: Make it more granular somehow using some range or idk.
-            let display_str = match self.id % 8 {
-                1 => "■".red(),
-                2 => "■".green(),
-                3 => "■".blue(),
-                4 => "■".yellow(),
-                5 => "■".cyan(),
-                6 => "■".magenta(),
-                7 => "■".color(TextColor::TrueColor { r: 255, g: 0, b: 0 }),
-                8 => "■".bright_green(),
-                9 => "■".bright_blue(),
-                10 => "■".bright_yellow(),
-                11 => "■".bright_cyan(),
-                0 => "■".bright_green(),
-                _ => unreachable!(),
-            };
+            let display_str = colorize_by_id(self.id, "■");
             write!(f, "{}", display_str)
         }
     }

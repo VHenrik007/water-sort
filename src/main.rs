@@ -3,7 +3,11 @@ use std::time::Instant;
 use thiserror::Error;
 
 use water_sort::{
-    game_elements::{glass::GlassError, glass_system::GlassSystemError},
+    game_elements::{
+        color_palette::{set_color_scheme, ColorScheme},
+        glass::GlassError,
+        glass_system::GlassSystemError,
+    },
     generate::system_generator::{generate_random_system_with_seed, SystemGeneratorError},
     solver::{bfs_shortest_path, heuristic_dijkstra_search, solve, SolutionValueMode, SolverError},
 };
@@ -67,28 +71,68 @@ impl clap::ValueEnum for HeuristicEvaluation {
     }
 }
 
+#[derive(Debug, Clone)]
+enum ColorSchemeArg {
+    Vibrant,
+    Pastel,
+    Muted,
+    HighContrast,
+}
+
+impl clap::ValueEnum for ColorSchemeArg {
+    fn value_variants<'a>() -> &'a [Self] {
+        &[Self::Vibrant, Self::Pastel, Self::Muted, Self::HighContrast]
+    }
+
+    fn to_possible_value(&self) -> Option<clap::builder::PossibleValue> {
+        match self {
+            Self::Vibrant => Some(clap::builder::PossibleValue::new("Vibrant")),
+            Self::Pastel => Some(clap::builder::PossibleValue::new("Pastel")),
+            Self::Muted => Some(clap::builder::PossibleValue::new("Muted")),
+            Self::HighContrast => Some(clap::builder::PossibleValue::new("HighContrast")),
+        }
+    }
+}
+
+impl From<ColorSchemeArg> for ColorScheme {
+    fn from(arg: ColorSchemeArg) -> Self {
+        match arg {
+            ColorSchemeArg::Vibrant => ColorScheme::Vibrant,
+            ColorSchemeArg::Pastel => ColorScheme::Pastel,
+            ColorSchemeArg::Muted => ColorScheme::Muted,
+            ColorSchemeArg::HighContrast => ColorScheme::HighContrast,
+        }
+    }
+}
+
 #[derive(Parser, Debug)]
 #[command(version, about, long_about = None)]
 struct Args {
     /// The search method: ["BFS", "Heuristic"]
-    #[arg(short, long)]
+    #[arg(short, long, default_value = "Heuristic")]
     search_method: SearchMethod,
 
     /// The search method: ["constant (dfs)", "color-count", "alternatin-colors"]
-    #[arg(short, long)]
+    #[arg(short, long, default_value = "ColorCounting")]
     heuristic_evaluation: HeuristicEvaluation,
 
     /// Random seed for the system genration
-    #[arg(short, long)]
+    #[arg(short, long, default_value = "42")]
     random_seed: u64,
 
     /// Number of colors
     #[arg(short, long)]
     number_of_colors: usize,
+
+    /// Color scheme: ["Vibrant", "Pastel", "Muted", "HighContrast"]
+    #[arg(short = 'c', long, default_value = "Vibrant")]
+    color_scheme: ColorSchemeArg,
 }
 
 fn main() -> WaterSortResult<()> {
     let args = Args::parse();
+
+    set_color_scheme(args.color_scheme.into());
 
     let system = generate_random_system_with_seed(args.number_of_colors, args.random_seed)?;
     system.print_system_state();
