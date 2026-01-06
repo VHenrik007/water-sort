@@ -22,7 +22,7 @@ The problem is modelled as a [state diagram](https://en.wikipedia.org/wiki/State
 - Plain [Breadth-First-Search](https://en.wikipedia.org/wiki/Breadth-first_search) using a regular queue.
 - A heuristic approach using a minimum priority queue (resembles [Dijkstra](https://en.wikipedia.org/wiki/Dijkstra%27s_algorithm)), except there are no guarantees for shortes path here.
 
-The BFS approach finds shortest paths, but takes considerably slower for smaller instances, and scales infeasibly worse as the number of colors grows. Meanwhile, the heuristic approach does not guarantee shortest paths (because the value I assign to each state is not a universally leading to a better solution), but is much more likely to find one particular solution orders of magnitude faster which (usually) isn't "too far" from the best optimal solution.
+The BFS approach finds shortest paths, but takes considerably slower for smaller instances, and scales infeasibly worse as the number of colors grows. Meanwhile, the heuristic approach does not guarantee shortest paths (because the value I assign to each state is not universally leading to a better solution), but is much more likely to find one particular solution orders of magnitude faster which (usually) isn't "too far" from the best optimal solution.
 
 ## Usage
 
