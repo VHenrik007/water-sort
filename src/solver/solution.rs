@@ -1,4 +1,4 @@
-use std::collections::VecDeque;
+use std::{collections::VecDeque, fmt::Display};
 
 use crate::game_elements::step::Step;
 
@@ -28,5 +28,22 @@ impl WaterSortSolution {
 
     pub fn new() -> Self {
         WaterSortSolution(VecDeque::new())
+    }
+}
+
+impl Display for WaterSortSolution {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let mut comma_separated = String::new();
+
+        for step in &self.0 {
+            comma_separated.push_str("(");
+            comma_separated.push_str(&step.source.to_string());
+            comma_separated.push_str(", ");
+            comma_separated.push_str(&step.destination.to_string());
+            comma_separated.push_str(")");
+            comma_separated.push_str(" -> ");
+        }
+        comma_separated.push_str("END");
+        write!(f, "{}", comma_separated)
     }
 }

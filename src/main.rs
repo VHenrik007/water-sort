@@ -35,6 +35,9 @@ fn main() -> WaterSortResult<()> {
     }?;
     let elapsed = now.elapsed();
 
+    println!("Steps:");
+    println!("{}", solution_steps);
+
     let solved_system = solve(system_to_solve, &solution_steps)?;
 
     if solved_system.is_solved() {
