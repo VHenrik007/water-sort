@@ -95,6 +95,25 @@ impl From<ColorSchemeArg> for ColorScheme {
     }
 }
 
+#[derive(Clone, Debug)]
+pub enum ProgramGoalArg {
+    SolveSystem,
+    ExploreSystem,
+}
+
+impl clap::ValueEnum for ProgramGoalArg {
+    fn value_variants<'a>() -> &'a [Self] {
+        &[Self::SolveSystem, Self::ExploreSystem]
+    }
+
+    fn to_possible_value(&self) -> Option<clap::builder::PossibleValue> {
+        match self {
+            Self::SolveSystem => Some(clap::builder::PossibleValue::new("Solve")),
+            Self::ExploreSystem => Some(clap::builder::PossibleValue::new("Explore")),
+        }
+    }
+}
+
 #[derive(Parser, Debug)]
 #[command(version, about, long_about = None)]
 pub struct Args {
@@ -125,6 +144,18 @@ pub struct Args {
     /// System to solve file path
     #[arg(short = 'p', long, default_value = None)]
     input_system: Option<String>,
+
+    /// Define the goal of the code. "Solver" for solving, "Explore" for exploring the state graph using BFS.
+    #[arg(short = 'g', long, default_value = "Solve")]
+    pub program_goal: ProgramGoalArg,
+
+    /// Maximum depth if the goal is to explore the state graph.
+    #[arg(short = 'd', long, default_value = "255")]
+    pub max_depth: u8,
+
+    /// Output file path if the goal is set to Explore.
+    #[arg(short = 'o', long, default_value = None)]
+    pub output_path: Option<String>
 }
 
 /// Custom error for the low-level stuff.

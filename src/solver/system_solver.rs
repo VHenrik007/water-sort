@@ -12,8 +12,6 @@ pub fn bfs_shortest_path(start_system: &GlassSystem) -> SolverResult<WaterSortSo
     let mut queue: SolverQueue<SystemId> = SolverQueue::regular();
     let mut paths: Paths = Paths::new();
 
-    // Maps between systems and their IDs. Used to avoid too much cloning of entire states, as well as
-    // checking if a given system is already found or not (although paths could be used for that too.)
     // TODO: A different graph-building approach would be to always only store the steps
     //       and at each evaluation reconstruct the system. To me this sounds intuitively
     //       slower but memory-wise it would definitely be much better.
@@ -47,7 +45,6 @@ pub fn bfs_shortest_path(start_system: &GlassSystem) -> SolverResult<WaterSortSo
 /// Dijkstra-like for constructing the valid-steps graph using heuristics to narrow the search.
 /// This does not guarantee shortest path.
 /// NOTE: Using constant evaluation mode is more or less equivalent with the DFS approach.
-//  TODO: Look up how A* is different.
 pub fn heuristic_dijkstra_search(
     start_system: &GlassSystem,
     evaluation_mode: &SolutionValueMode,
@@ -55,8 +52,6 @@ pub fn heuristic_dijkstra_search(
     let mut queue: SolverQueue<EvaluatedNode> = SolverQueue::priority();
     let mut paths: Paths = Paths::new();
 
-    // Maps between systems and their IDs. Used to avoid too much cloning of entire states, as well as
-    // checking if a given system is already found or not (although paths could be used for that too.)
     // TODO: A different graph-building approach would be to always only store the steps
     //       and at each evaluation reconstruct the system. To me this sounds intuitively
     //       slower but memory-wise it would definitely be much better.

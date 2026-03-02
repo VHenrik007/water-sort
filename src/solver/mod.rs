@@ -2,6 +2,9 @@ mod data_structures;
 mod evaluation;
 mod solution;
 mod system_solver;
+mod graph_builder;
+
+use std::io::Error as IOError;
 
 use thiserror::Error;
 
@@ -9,6 +12,7 @@ use crate::game_elements::glass_system::GlassSystemError;
 
 pub use evaluation::{solution_value, SolutionValueMode};
 pub use system_solver::{bfs_shortest_path, heuristic_dijkstra_search, solve};
+pub use graph_builder::build_state_graph;
 
 /// Custom error for the solver.
 #[derive(Debug, Error)]
@@ -23,6 +27,9 @@ pub enum SolverError {
     /// invalid, this error might be useful for debugging.
     #[error("Invalid solution at step {0}")]
     InvalidSolution(usize),
+    /// File handling error.
+    #[error(transparent)]
+    IOError(#[from] IOError)
 }
 
 pub type SolverResult<T> = Result<T, SolverError>;

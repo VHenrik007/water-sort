@@ -4,7 +4,6 @@ use crate::{game_elements::glass_system::GlassSystem, solver::SystemId};
 
 // Maps between systems and their IDs. Used to avoid too much cloning of entire states, as well as
 // checking if a given system is already found or not (although paths could be used for that too).
-#[derive(Default)]
 pub struct SystemDictionary {
     /// Keeps track of IDs.
     system_id_counter: SystemId,
@@ -12,6 +11,19 @@ pub struct SystemDictionary {
     system_id_map: HashMap<GlassSystem, SystemId>,
     /// Id -> System
     id_system_map: HashMap<SystemId, GlassSystem>,
+}
+
+/// The default counter for the dictionary
+/// starts at 1 to allow the usage of 0 for
+/// special cases (instead of something like -1 etc...)
+impl Default for SystemDictionary {
+    fn default() -> Self {
+        SystemDictionary {
+            system_id_counter: 1,
+            system_id_map: HashMap::default(),
+            id_system_map: HashMap::default()
+        }
+    }
 }
 
 impl SystemDictionary {

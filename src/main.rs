@@ -2,28 +2,42 @@ use std::time::Instant;
 use thiserror::Error;
 
 use water_sort::{
-    cli_arguments::{Args, ArgumentsError, SearchMethod},
-    solver::{bfs_shortest_path, heuristic_dijkstra_search, solve, SolverError},
+    cli_arguments::{Args, ArgumentsError, ProgramGoalArg, SearchMethod}, game_elements::glass_system::GlassSystem, solver::{SolverError, bfs_shortest_path, build_state_graph, heuristic_dijkstra_search, solve}
 };
 
 /// Custom error for the solver.
 #[derive(Debug, Error)]
 pub enum WaterSortError {
-    /// Derived from the SolverError if an issue happens on that level.
-    #[error(transparent)]
-    SolverError(#[from] SolverError),
     /// Derived from the ArgumentsError if an issue happens on that level.
     #[error(transparent)]
     ArgumentsError(#[from] ArgumentsError),
+    /// Derived from the SolverError if an issue happens on that level.
+    #[error(transparent)]
+    SolverError(#[from] SolverError),
 }
 
 pub type WaterSortResult<T> = Result<T, WaterSortError>;
 
 fn main() -> WaterSortResult<()> {
     let (args, system_to_solve) = Args::process_arguments()?;
-
     system_to_solve.print_system_state();
 
+    match args.program_goal {
+        ProgramGoalArg::ExploreSystem => {
+            let graph = build_state_graph(&system_to_solve, &args.heuristic_evaluation.clone().into(), args.max_depth);
+            if let Some(path) = args.output_path {
+                graph.write_to_file(path)?;
+            }
+        },
+        ProgramGoalArg::SolveSystem => {
+            solve_system(args, system_to_solve)?
+        }
+    }
+
+    Ok(())
+}
+
+fn solve_system(args: Args, system_to_solve: GlassSystem) -> WaterSortResult<()> {
     println!("Solving...");
 
     let now = Instant::now();

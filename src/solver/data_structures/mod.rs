@@ -13,7 +13,7 @@ pub use system_dictionary::SystemDictionary;
 /// A neighbour is a struct stored for determining paths. It is essentially
 /// a tuple of a system and a step that lead there. Neighbours can only be
 /// understood in context with a parent defined when constructing the graph.
-#[derive(Debug, PartialEq, Eq, Hash)]
+#[derive(Debug, PartialEq, Eq, Hash, Clone)]
 pub struct Neighbour {
     /// The resulting system.
     pub system: SystemId,
