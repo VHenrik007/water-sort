@@ -117,15 +117,15 @@ impl clap::ValueEnum for ProgramGoalArg {
 #[derive(Parser, Debug)]
 #[command(version, about, long_about = None)]
 pub struct Args {
-    /// The search method: ["BFS", "Heuristic"]
-    #[arg(short, long, default_value = "Heuristic")]
+    /// The search method: ["BFS", "Heuristic"] (Only relevant for solvers. BFS is forced for exploration mode.)
+    #[arg(short = 'm', long, default_value = "Heuristic")]
     pub search_method: SearchMethod,
 
-    /// The search method: ["constant (dfs)", "color-count", "alternatin-colors"]
-    #[arg(short, long, default_value = "ColorCounting")]
+    /// The search method: ["constant (dfs)", "color-count", "alternating-colors"] (Only relevant for solvers. Determines how the heuristic evaluates a given state of the game.)
+    #[arg(short = 'e', long, default_value = "ColorCounting")]
     pub heuristic_evaluation: HeuristicEvaluation,
 
-    /// Random seed for the system genration
+    /// Random seed for the system genration. Only relevant if no input file is provided.
     #[arg(short, long, default_value = "42")]
     pub random_seed: u64,
 
